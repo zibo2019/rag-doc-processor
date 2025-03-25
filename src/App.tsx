@@ -105,7 +105,8 @@ function App() {
           </div>
 
           <FileList
-            files={files}
+            originalFiles={files.filter(file => !file.content)}  // 未处理的文件
+            processedFiles={files.filter(file => file.content)}  // 已处理的文件
             selectedFiles={selectedFiles}
             onSelectFile={handleFileSelect}
             onRemove={(id) => {
