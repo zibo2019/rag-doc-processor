@@ -5,9 +5,11 @@ import { AgentPanel } from '../agents/AgentPanel';
 import { useFileStore } from '../../stores/fileStore';
 import { useAgentStore } from '../../stores/agentStore';
 import { convertToFileInfo } from '../../utils/file';
-import clsx from 'clsx';
 import { notify } from '../../utils/notification';
 import { checkAPIConfigured } from '../../api/openai/client';
+import { AgentConfig } from '../../types/agent';
+import { ExtendedAgentConfig, ExtendedAgentListItem } from '../../types/agentExtend';
+import { ProcessingModal, ProcessingStatus } from '../processing/ProcessingModal';
 
 // 定义处理任务的结果类型
 interface ProcessingTaskResult {
@@ -26,15 +28,22 @@ const FilePage: React.FC = () => {
     removeFile,
     processFile,
     cancelProcessing,
-    clearFiles
   } = useFileStore();
 
-  const { currentAgent } = useAgentStore();
+  const { currentAgent, selectedAgentId } = useAgentStore();
 
   // 选中的文件ID列表
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  // 处理中状态
-  const [isProcessing, setIsProcessing] = useState(false);
+  // 处理进度模态框状态
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
+  // 处理进度状态
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>({
+    total: 0,
+    processed: 0,
+    success: 0,
+    failed: 0,
+    completed: false
+  });
 
   // 处理文件选择
   const handleFileSelect = (id: string) => {
@@ -42,15 +51,6 @@ const FilePage: React.FC = () => {
       prev.includes(id) 
         ? prev.filter(fileId => fileId !== id)
         : [...prev, id]
-    );
-  };
-
-  // 处理全选/取消全选
-  const handleSelectAll = () => {
-    setSelectedFiles(prev => 
-      prev.length === files.length 
-        ? [] 
-        : files.map(file => file.id)
     );
   };
 
@@ -68,10 +68,24 @@ const FilePage: React.FC = () => {
     }
   };
 
+  // 处理完成后点击"完成"按钮的回调
+  const handleProcessingComplete = () => {
+    // 关闭模态框
+    setShowProcessingModal(false);
+    
+    // 显示处理结果通知
+    const { success, failed } = processingStatus;
+    if (failed === 0) {
+      notify.success(`已成功处理 ${success} 个文件`);
+    } else {
+      notify.warning(`处理完成: ${success} 成功, ${failed} 失败`);
+    }
+  };
+
   // 处理选中文件的函数
   const handleProcessFiles = async () => {
     // 验证是否选择了文件和智能体
-    if (!currentAgent) {
+    if (!selectedAgentId) {
       notify.error('请先选择一个智能体');
       return;
     }
@@ -87,14 +101,52 @@ const FilePage: React.FC = () => {
       return;
     }
 
-    // 设置处理中状态
-    setIsProcessing(true);
+    // 确保currentAgent存在
+    if (!currentAgent && selectedAgentId) {
+      // 获取当前选中的智能体
+      const { agents, setCurrentAgent } = useAgentStore.getState();
+      const selectedAgent = agents.find(a => a.id === selectedAgentId);
+      
+      if (selectedAgent) {
+        // 将AgentListItem转换为ExtendedAgentConfig
+        const agentConfig: ExtendedAgentConfig = {
+          id: selectedAgent.id,
+          name: selectedAgent.name,
+          prompt: selectedAgent.prompt || '', // 确保有默认值
+          description: selectedAgent.description,
+          createdAt: selectedAgent.createdAt,
+          updatedAt: selectedAgent.updatedAt,
+          // 添加模型字段，如果存在则使用，否则使用默认值
+          model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
+          // 添加缺失的必要字段
+          rules: {
+            maxTokens: 2048,
+            temperature: 0.7
+          },
+          isActive: true
+        };
+        
+        setCurrentAgent(agentConfig as AgentConfig);
+      } else {
+        notify.error('无法获取智能体信息');
+        return;
+      }
+    }
+    
+    // 初始化处理状态
+    setProcessingStatus({
+      total: selectedFiles.length,
+      processed: 0,
+      success: 0,
+      failed: 0,
+      completed: false
+    });
+    
+    // 显示处理进度模态框
+    setShowProcessingModal(true);
 
     try {
-      // 显示处理中的提示，只显示一条全局通知
-      const toastId = notify.loading(`正在使用"${currentAgent.name}"处理${selectedFiles.length}个文件...`);
-      
-      // 创建处理任务数组，但不要在处理单个文件时创建单独的通知
+      // 创建处理任务数组
       const processingTasks = selectedFiles.map(async (fileId) => {
         try {
           // 获取文件信息
@@ -103,47 +155,182 @@ const FilePage: React.FC = () => {
           // 处理文件但不显示通知
           await processFileWithoutNotification(fileId);
           
+          // 更新处理状态
+          setProcessingStatus(prev => ({
+            ...prev,
+            processed: prev.processed + 1,
+            success: prev.success + 1
+          }));
+          
           return { success: true, fileId, fileName: file?.name } as ProcessingTaskResult;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '处理失败';
           console.error(`处理文件 ${fileId} 失败:`, errorMessage);
+          
+          // 更新处理状态
+          setProcessingStatus(prev => ({
+            ...prev,
+            processed: prev.processed + 1,
+            failed: prev.failed + 1
+          }));
+          
           return { success: false, fileId, error: errorMessage } as ProcessingTaskResult;
         }
       });
       
       // 并行处理所有文件
-      const results = await Promise.allSettled(processingTasks);
+      await Promise.allSettled(processingTasks);
       
-      // 统计处理结果
-      const successCount = results.filter(
-        r => r.status === 'fulfilled' && (r.value as ProcessingTaskResult).success
-      ).length;
-      const failCount = selectedFiles.length - successCount;
+      // 设置处理完成状态
+      setProcessingStatus(prev => ({
+        ...prev,
+        completed: true
+      }));
       
-      // 更新处理结果提示
-      if (failCount === 0) {
-        notify.update(toastId, `已成功处理 ${successCount} 个文件`, 'success');
-      } else {
-        notify.update(toastId, `处理完成: ${successCount} 成功, ${failCount} 失败`, 'warning');
-      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
+      // 关闭模态框并显示错误提示
+      setShowProcessingModal(false);
       notify.error(`批量处理文件时发生错误: ${errorMessage}`);
-    } finally {
-      // 重置处理中状态
-      setIsProcessing(false);
+    }
+  };
+
+  // 处理清空文件列表或处理结果
+  const handleClearFiles = (isProcessed: boolean) => {
+    // 获取当前状态的所有文件
+    const { files, updateFile } = useFileStore.getState();
+    
+    if (isProcessed) {
+      // 如果是处理后文件列表，只清除处理结果，不删除文件
+      files.forEach(file => {
+        if (file.content !== undefined && file.content !== null && file.content !== '') {
+          // 清除content字段，将状态重置为有效
+          updateFile(file.id, {
+            content: undefined,
+            status: 'valid'
+          });
+        }
+      });
+      
+      notify.success('已清空所有处理结果');
+    } else {
+      // 清除所有文件
+      files.forEach(file => removeFile(file.id));
+      notify.success('已清空所有文件');
+    }
+    
+    // 清空选择
+    setSelectedFiles([]);
+  };
+
+  // 处理下载选中的处理后文件
+  const handleDownloadFiles = (fileIds: string[]) => {
+    // 获取当前状态的所有文件
+    const { files } = useFileStore.getState();
+    
+    // 筛选出要下载的文件
+    const filesToDownload = files.filter(file => 
+      fileIds.includes(file.id) && file.content !== undefined && file.content !== null
+    );
+    
+    // 下载每个选中的文件
+    filesToDownload.forEach(file => {
+      // 创建Blob对象
+      const blob = new Blob([file.content || ''], { type: 'text/plain' });
+      
+      // 创建下载链接
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      // 设置下载文件名，添加processed后缀
+      const fileNameParts = file.name.split('.');
+      const extension = fileNameParts.pop() || '';
+      const baseName = fileNameParts.join('.');
+      a.download = `${baseName}_processed.${extension}`;
+      
+      // 触发下载
+      document.body.appendChild(a);
+      a.click();
+      
+      // 清理
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  };
+
+  // 处理单个文件的函数
+  const handleProcessSingleFile = async (fileId: string) => {
+    // 验证是否选择了智能体
+    if (!selectedAgentId) {
+      notify.error('请先选择一个智能体');
+      return;
+    }
+
+    // 检查API是否已配置
+    if (!checkAPIConfigured()) {
+      notify.error('OpenAI API 尚未配置，请在设置中配置API密钥');
+      return;
+    }
+
+    // 确保currentAgent存在
+    if (!currentAgent && selectedAgentId) {
+      // 获取当前选中的智能体
+      const { agents, setCurrentAgent } = useAgentStore.getState();
+      const selectedAgent = agents.find(a => a.id === selectedAgentId);
+      
+      if (selectedAgent) {
+        // 将AgentListItem转换为ExtendedAgentConfig
+        const agentConfig: ExtendedAgentConfig = {
+          id: selectedAgent.id,
+          name: selectedAgent.name,
+          prompt: selectedAgent.prompt || '', // 确保有默认值
+          description: selectedAgent.description,
+          createdAt: selectedAgent.createdAt,
+          updatedAt: selectedAgent.updatedAt,
+          // 添加模型字段，如果存在则使用，否则使用默认值
+          model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
+          // 添加缺失的必要字段
+          rules: {
+            maxTokens: 2048,
+            temperature: 0.7
+          },
+          isActive: true
+        };
+        
+        setCurrentAgent(agentConfig as AgentConfig);
+      } else {
+        notify.error('无法获取智能体信息');
+        return;
+      }
+    }
+
+    // 直接调用processFile函数处理单个文件，显示通知
+    try {
+      await processFile(fileId, true);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '处理失败';
+      notify.error(`处理文件失败: ${errorMessage}`);
     }
   };
 
   return (
     <div className="container mx-auto px-4">
+      {/* 处理进度模态框 */}
+      <ProcessingModal 
+        isOpen={showProcessingModal}
+        processingStatus={processingStatus}
+        agentName={currentAgent?.name || '智能体'}
+        onComplete={handleProcessingComplete}
+      />
+
       {/* 标题 */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-blue-800">
           AI文档批量处理器
         </h1>
         <p className="mt-2 text-blue-600">
-          支持上传 MD、TXT、HTML 格式的文件进行处理
+          支持上传各种格式的文件进行处理，文件大小限制为2MB
         </p>
       </div>
 
@@ -170,54 +357,21 @@ const FilePage: React.FC = () => {
         />
       </div>
 
-      {/* 文件列表和操作按钮 */}
-      <div className="space-y-4 bg-white p-6 rounded-lg shadow-lg">
-        <div className="flex justify-between items-center">
-          <div className="flex space-x-3">
-            <button
-              className={clsx(
-                "px-6 py-2.5 rounded-full font-medium transition-all duration-200 shadow-sm",
-                selectedFiles.length > 0 && currentAgent && !isProcessing
-                  ? "bg-blue-600 text-white hover:bg-blue-700 hover:shadow-md"
-                  : "bg-blue-100 text-blue-300 cursor-not-allowed"
-              )}
-              onClick={handleProcessFiles}
-              disabled={selectedFiles.length === 0 || !currentAgent || isProcessing}
-            >
-              {isProcessing 
-                ? "处理中..." 
-                : `处理选中文件 (${selectedFiles.length})`
-              }
-            </button>
-            <button
-              className="px-6 py-2.5 bg-blue-500 text-white rounded-full font-medium hover:bg-blue-600 transition-all duration-200 shadow-sm hover:shadow-md"
-              onClick={handleSelectAll}
-            >
-              {selectedFiles.length === files.length ? '取消全选' : '全选'}
-            </button>
-          </div>
-          <button
-            className="px-4 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full transition-all duration-200"
-            onClick={() => {
-              clearFiles();
-              setSelectedFiles([]);
-            }}
-          >
-            清空列表
-          </button>
-        </div>
-
+      {/* 文件列表 */}
+      <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
         <FileList
-          originalFiles={files}  // 传递所有文件作为原始文件
-          processedFiles={files.filter(file => file.content)}  // 已处理的文件
+          originalFiles={files} // 显示所有原始文件
+          processedFiles={files.filter(file => file.content !== undefined && file.content !== null && file.content !== '')}
+          onRemove={removeFile}
+          onCancel={cancelProcessing}
+          onRetry={(id) => processFile(id)}
           selectedFiles={selectedFiles}
           onSelectFile={handleFileSelect}
-          onRemove={(id) => {
-            removeFile(id);
-            setSelectedFiles(prev => prev.filter(fileId => fileId !== id));
-          }}
-          onCancel={cancelProcessing}
-          onRetry={processFile}
+          onProcessFiles={handleProcessFiles}
+          onDownloadFiles={handleDownloadFiles}
+          onClearFiles={handleClearFiles}
+          onProcessSingleFile={handleProcessSingleFile}
+          className="mt-4"
         />
       </div>
     </div>

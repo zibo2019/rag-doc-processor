@@ -47,7 +47,8 @@ export const validateFile = (
   file: File,
   config: FileValidationConfig
 ): { isValid: boolean; error?: string } => {
-  if (!validateFileType(file, config.allowedTypes)) {
+  // 如果allowedTypes不为空，则验证文件类型
+  if (config.allowedTypes.length > 0 && !validateFileType(file, config.allowedTypes)) {
     return {
       isValid: false,
       error: `不支持的文件类型。支持的类型：${config.allowedTypes.join(', ')}`

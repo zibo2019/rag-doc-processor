@@ -24,11 +24,31 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
   // 在组件加载时设置默认选中的智能体
   useEffect(() => {
     if (!isLoading && agents.length > 0 && !selectedAgentId) {
-      // 如果没有选中的智能体，选择第一个，但不设置currentAgent
+      // 如果没有选中的智能体，选择第一个
       const firstAgent = agents[0];
       setSelectedAgentId(firstAgent.id || null);
+      
+      // 同时设置currentAgent
+      const agentConfig: ExtendedAgentConfig = {
+        id: firstAgent.id,
+        name: firstAgent.name,
+        prompt: firstAgent.prompt || '', // 确保有默认值
+        description: firstAgent.description,
+        createdAt: firstAgent.createdAt,
+        updatedAt: firstAgent.updatedAt,
+        // 添加模型字段，如果存在则使用，否则使用默认值
+        model: (firstAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
+        // 添加缺失的必要字段
+        rules: {
+          maxTokens: 2048,
+          temperature: 0.7
+        },
+        isActive: true
+      };
+      
+      setCurrentAgent(agentConfig as AgentConfig);
     }
-  }, [agents, isLoading, selectedAgentId, setSelectedAgentId]);
+  }, [agents, isLoading, selectedAgentId, setSelectedAgentId, setCurrentAgent]);
 
   const handleAgentSelect = (agentId: string) => {
     setSelectedAgentId(agentId);

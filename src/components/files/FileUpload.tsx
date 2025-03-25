@@ -127,7 +127,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         className="hidden"
         onChange={(e) => handleFileSelect(e.target.files)}
         disabled={disabled}
-        accept={validationConfig.allowedTypes.map(type => `.${type}`).join(',')}
+        accept={validationConfig.allowedTypes.length > 0 ? validationConfig.allowedTypes.map(type => `.${type}`).join(',') : '*'}
       />
 
       <div className="flex flex-col items-center justify-center pt-5 pb-6">
@@ -156,13 +156,23 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           <span className="font-semibold">点击上传</span> 或拖拽文件到此处
         </p>
         <div className="space-y-1.5">
-          <p className={clsx('text-sm', {
-            'text-blue-500': isDragging,
-            'text-blue-400': !isDragging && !disabled,
-            'text-gray-400': disabled
-          })}>
-            支持的文件类型: {validationConfig.allowedTypes.join(', ')}
-          </p>
+          {validationConfig.allowedTypes.length > 0 ? (
+            <p className={clsx('text-sm', {
+              'text-blue-500': isDragging,
+              'text-blue-400': !isDragging && !disabled,
+              'text-gray-400': disabled
+            })}>
+              支持的文件类型: {validationConfig.allowedTypes.join(', ')}
+            </p>
+          ) : (
+            <p className={clsx('text-sm', {
+              'text-blue-500': isDragging,
+              'text-blue-400': !isDragging && !disabled,
+              'text-gray-400': disabled
+            })}>
+              支持所有文件类型
+            </p>
+          )}
           <p className={clsx('text-sm', {
             'text-blue-500': isDragging,
             'text-blue-400': !isDragging && !disabled,

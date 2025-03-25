@@ -11,6 +11,10 @@ interface FileListProps {
   onRetry: (id: string) => void;
   selectedFiles?: string[];
   onSelectFile?: (id: string) => void;
+  onProcessFiles?: () => void; // 处理选中文件的回调
+  onDownloadFiles?: (ids: string[]) => void; // 下载选中文件的回调
+  onClearFiles?: (isProcessed: boolean) => void; // 清空文件列表的回调
+  onProcessSingleFile?: (id: string) => void; // 处理单个文件的回调
   className?: string;
 }
 
@@ -77,7 +81,9 @@ const FileListItem: React.FC<{
   isSelected?: boolean;
   onSelect?: (id: string) => void;
   isProcessedView?: boolean; // 新增参数，标识是否为处理后视图
-}> = ({ file, onRemove, onCancel, onRetry, onPreview, isSelected, onSelect, isProcessedView }) => (
+  onProcessSingle?: (id: string) => void; // 单个文件处理函数
+  onDownloadSingle?: (id: string) => void; // 单个文件下载函数
+}> = ({ file, onRemove, onCancel, onRetry, onPreview, isSelected, onSelect, isProcessedView, onProcessSingle, onDownloadSingle }) => (
   <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200">
     {/* 选择框 */}
     {onSelect && (
@@ -142,6 +148,27 @@ const FileListItem: React.FC<{
           重试
         </button>
       )}
+      
+      {/* 原始文件处理按钮 */}
+      {!isProcessedView && onProcessSingle && file.status !== 'uploading' && (
+        <button
+          onClick={() => onProcessSingle(file.id)}
+          className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+        >
+          处理
+        </button>
+      )}
+      
+      {/* 处理后文件下载按钮 */}
+      {isProcessedView && onDownloadSingle && file.status !== 'uploading' && (
+        <button
+          onClick={() => onDownloadSingle(file.id)}
+          className="px-2 py-1 text-sm text-green-600 hover:text-green-800"
+        >
+          下载
+        </button>
+      )}
+      
       {file.status !== 'uploading' && (
         <button
           onClick={() => onRemove(file.id)}
@@ -160,6 +187,68 @@ const FileListItem: React.FC<{
   </div>
 );
 
+/**
+ * 功能按钮组组件
+ */
+const ActionButtons: React.FC<{
+  type: 'original' | 'processed';
+  fileCount: number;
+  selectedCount: number;
+  onSelectAll: () => void;
+  onProcessFiles?: () => void;
+  onDownloadFiles?: () => void;
+  onClearFiles: () => void;
+}> = ({ type, fileCount, selectedCount, onSelectAll, onProcessFiles, onDownloadFiles, onClearFiles }) => (
+  <div className="flex items-center space-x-3 mb-3">
+    <button
+      onClick={onSelectAll}
+      className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors duration-200"
+    >
+      {selectedCount === fileCount && fileCount > 0 ? '取消全选' : '全选'}
+    </button>
+    
+    {type === 'original' && onProcessFiles && (
+      <button
+        onClick={onProcessFiles}
+        disabled={selectedCount === 0}
+        className={`px-3 py-1.5 text-sm text-white rounded-md transition-colors duration-200 ${
+          selectedCount > 0 
+            ? 'bg-blue-600 hover:bg-blue-700' 
+            : 'bg-blue-300 cursor-not-allowed'
+        }`}
+      >
+        处理选中文件
+      </button>
+    )}
+    
+    {type === 'processed' && onDownloadFiles && (
+      <button
+        onClick={onDownloadFiles}
+        disabled={selectedCount === 0}
+        className={`px-3 py-1.5 text-sm text-white rounded-md transition-colors duration-200 ${
+          selectedCount > 0 
+            ? 'bg-green-600 hover:bg-green-700' 
+            : 'bg-green-300 cursor-not-allowed'
+        }`}
+      >
+        下载选中文件
+      </button>
+    )}
+    
+    <button
+      onClick={onClearFiles}
+      disabled={fileCount === 0}
+      className={`px-3 py-1.5 text-sm text-white rounded-md transition-colors duration-200 ${
+        fileCount > 0 
+          ? 'bg-red-600 hover:bg-red-700' 
+          : 'bg-red-300 cursor-not-allowed'
+      }`}
+    >
+      {type === 'original' ? '清空全部文件' : '清空处理结果'}
+    </button>
+  </div>
+);
+
 export const FileList: React.FC<FileListProps> = ({
   originalFiles = [],
   processedFiles = [],
@@ -168,14 +257,106 @@ export const FileList: React.FC<FileListProps> = ({
   onRetry,
   selectedFiles = [],
   onSelectFile,
+  onProcessFiles,
+  onDownloadFiles,
+  onClearFiles,
+  onProcessSingleFile,
   className,
 }) => {
   // 预览状态
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
+  
+  // 独立的原始文件和处理后文件选择状态
+  const [originalSelectedFiles, setOriginalSelectedFiles] = useState<string[]>([]);
+  const [processedSelectedFiles, setProcessedSelectedFiles] = useState<string[]>([]);
 
   // 添加类型保护，确保是数组
   const safeOriginalFiles = Array.isArray(originalFiles) ? originalFiles : [];
   const safeProcessedFiles = Array.isArray(processedFiles) ? processedFiles : [];
+
+  // 处理原始文件的选择
+  const handleOriginalFileSelect = (id: string) => {
+    setOriginalSelectedFiles(prev => 
+      prev.includes(id) 
+        ? prev.filter(fileId => fileId !== id)
+        : [...prev, id]
+    );
+    // 同时更新父组件的选择状态
+    if (onSelectFile) onSelectFile(id);
+  };
+
+  // 处理处理后文件的选择
+  const handleProcessedFileSelect = (id: string) => {
+    setProcessedSelectedFiles(prev => 
+      prev.includes(id) 
+        ? prev.filter(fileId => fileId !== id)
+        : [...prev, id]
+    );
+    // 同时更新父组件的选择状态
+    if (onSelectFile) onSelectFile(id);
+  };
+
+  // 原始文件全选/取消全选
+  const handleOriginalSelectAll = () => {
+    const newSelection = originalSelectedFiles.length === safeOriginalFiles.length 
+      ? [] 
+      : safeOriginalFiles.map(file => file.id);
+    
+    setOriginalSelectedFiles(newSelection);
+    
+    // 更新父组件的选择状态
+    if (onSelectFile && newSelection.length > originalSelectedFiles.length) {
+      newSelection.forEach(id => {
+        if (!selectedFiles.includes(id)) {
+          onSelectFile(id);
+        }
+      });
+    } else if (onSelectFile && newSelection.length < originalSelectedFiles.length) {
+      originalSelectedFiles.forEach(id => {
+        if (selectedFiles.includes(id)) {
+          onSelectFile(id);
+        }
+      });
+    }
+  };
+
+  // 处理后文件全选/取消全选
+  const handleProcessedSelectAll = () => {
+    const newSelection = processedSelectedFiles.length === safeProcessedFiles.length 
+      ? [] 
+      : safeProcessedFiles.map(file => file.id);
+    
+    setProcessedSelectedFiles(newSelection);
+    
+    // 更新父组件的选择状态
+    if (onSelectFile && newSelection.length > processedSelectedFiles.length) {
+      newSelection.forEach(id => {
+        if (!selectedFiles.includes(id)) {
+          onSelectFile(id);
+        }
+      });
+    } else if (onSelectFile && newSelection.length < processedSelectedFiles.length) {
+      processedSelectedFiles.forEach(id => {
+        if (selectedFiles.includes(id)) {
+          onSelectFile(id);
+        }
+      });
+    }
+  };
+
+  // 下载选中的处理后文件
+  const handleDownloadSelectedFiles = () => {
+    if (onDownloadFiles && processedSelectedFiles.length > 0) {
+      onDownloadFiles(processedSelectedFiles);
+    }
+  };
+
+  // 下载单个文件
+  const handleDownloadSingleFile = (id: string) => {
+    if (onDownloadFiles) {
+      onDownloadFiles([id]);
+    }
+  };
 
   if (safeOriginalFiles.length === 0 && safeProcessedFiles.length === 0) {
     return (
@@ -190,7 +371,25 @@ export const FileList: React.FC<FileListProps> = ({
       <div className="grid grid-cols-2 gap-6">
         {/* 原始文件列表 */}
         <div>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">原始文件</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-gray-900">原始文件</h2>
+            <span className="text-sm text-gray-600">
+              {safeOriginalFiles.length}个文件 / 已选{originalSelectedFiles.length}个
+            </span>
+          </div>
+          
+          {/* 原始文件操作按钮 */}
+          {safeOriginalFiles.length > 0 && (
+            <ActionButtons
+              type="original"
+              fileCount={safeOriginalFiles.length}
+              selectedCount={originalSelectedFiles.length}
+              onSelectAll={handleOriginalSelectAll}
+              onProcessFiles={onProcessFiles}
+              onClearFiles={() => onClearFiles && onClearFiles(false)}
+            />
+          )}
+          
           <div className="space-y-4">
             {safeOriginalFiles.length > 0 ? (
               safeOriginalFiles.map((file) => (
@@ -201,9 +400,10 @@ export const FileList: React.FC<FileListProps> = ({
                   onCancel={onCancel}
                   onRetry={onRetry}
                   onPreview={setPreviewFile}
-                  isSelected={selectedFiles.includes(file.id)}
-                  onSelect={onSelectFile}
+                  isSelected={originalSelectedFiles.includes(file.id)}
+                  onSelect={handleOriginalFileSelect}
                   isProcessedView={false}
+                  onProcessSingle={onProcessSingleFile}
                 />
               ))
             ) : (
@@ -216,7 +416,25 @@ export const FileList: React.FC<FileListProps> = ({
 
         {/* 处理后文件列表 */}
         <div>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">处理后文件</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-medium text-gray-900">处理后文件</h2>
+            <span className="text-sm text-gray-600">
+              {safeProcessedFiles.length}个文件 / 已选{processedSelectedFiles.length}个
+            </span>
+          </div>
+          
+          {/* 处理后文件操作按钮 */}
+          {safeProcessedFiles.length > 0 && (
+            <ActionButtons
+              type="processed"
+              fileCount={safeProcessedFiles.length}
+              selectedCount={processedSelectedFiles.length}
+              onSelectAll={handleProcessedSelectAll}
+              onDownloadFiles={handleDownloadSelectedFiles}
+              onClearFiles={() => onClearFiles && onClearFiles(true)}
+            />
+          )}
+          
           <div className="space-y-4">
             {safeProcessedFiles.length > 0 ? (
               safeProcessedFiles.map((file) => (
@@ -227,9 +445,10 @@ export const FileList: React.FC<FileListProps> = ({
                   onCancel={onCancel}
                   onRetry={onRetry}
                   onPreview={setPreviewFile}
-                  isSelected={selectedFiles.includes(file.id)}
-                  onSelect={onSelectFile}
+                  isSelected={processedSelectedFiles.includes(file.id)}
+                  onSelect={handleProcessedFileSelect}
                   isProcessedView={true}
+                  onDownloadSingle={handleDownloadSingleFile}
                 />
               ))
             ) : (

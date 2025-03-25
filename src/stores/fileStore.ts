@@ -26,7 +26,7 @@ interface FileStore {
 // 默认验证配置
 const DEFAULT_VALIDATION_CONFIG: FileValidationConfig = {
   maxFileSize: 2 * 1024 * 1024,        // 2MB
-  allowedTypes: ['md', 'txt', 'html'],  // 允许的文件类型
+  allowedTypes: [],                    // 不限制文件类型
   maxConcurrentUploads: 10             // 增加最大并发数到10
 };
 
