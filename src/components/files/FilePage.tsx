@@ -330,7 +330,7 @@ const FilePage: React.FC = () => {
           AI文档批量处理器
         </h1>
         <p className="mt-2 text-blue-600">
-          支持上传各种格式的文件进行处理，文件大小限制为2MB
+          支持上传各种格式的文件进行处理，文件大小限制为200KB
         </p>
       </div>
 

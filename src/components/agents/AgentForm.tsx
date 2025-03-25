@@ -45,7 +45,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
       prompt: '',
       model: 'gpt-4o',
       rules: {
-        maxTokens: 64000,
+        maxTokens: 8192,
         temperature: 0.7,
       },
       isActive: true,

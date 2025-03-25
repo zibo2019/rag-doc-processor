@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogHeader, DialogTitle } from '../ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
+import { useFileStore } from '@/stores/fileStore';
 
 export interface ProcessingStatus {
   total: number;
@@ -74,6 +75,7 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
 }) => {
   const { total, processed, success, failed, completed } = processingStatus;
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
+  const { currentProcessingCount, maxConcurrentProcessing } = useFileStore();
   
   return (
     <Dialog open={isOpen}>
@@ -88,14 +90,19 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
         </DialogHeader>
         
         <div className="py-6 space-y-4">
-          <div className="text-center text-sm mb-4 flex items-center justify-center">
+          <div className="text-center text-sm mb-4 flex flex-col items-center justify-center">
             {completed 
               ? `已完成处理${total}个文件` 
               : (
-                <div className="flex items-center gap-2">
-                  <Spinner />
-                  <span>正在使用"{agentName}"处理{total}个文件...</span>
-                </div>
+                <>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Spinner />
+                    <span>正在使用"{agentName}"处理{total}个文件...</span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    当前并行处理：{currentProcessingCount}/{maxConcurrentProcessing}
+                  </div>
+                </>
               )
             }
           </div>

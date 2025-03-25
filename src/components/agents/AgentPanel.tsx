@@ -47,7 +47,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         model: (firstAgent as ExtendedAgentListItem).model || 'gpt-4o',
         // 添加缺失的必要字段
         rules: {
-          maxTokens: 64000,
+          maxTokens: 8192,
           temperature: 0.7
         },
         isActive: true
@@ -76,7 +76,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-4o',
         // 添加缺失的必要字段
         rules: {
-          maxTokens: 64000,
+          maxTokens: 8192,
           temperature: 0.7
         },
         isActive: true

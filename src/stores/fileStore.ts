@@ -12,6 +12,7 @@ interface FileStore {
   isProcessing: boolean;               // 是否正在处理
   currentProcessingCount: number;      // 当前正在处理的文件数量
   validationConfig: FileValidationConfig; // 验证配置
+  maxConcurrentProcessing: number;     // 最大并行处理数量
 
   // 动作
   addFiles: (files: FileInfo[]) => void;
@@ -25,9 +26,9 @@ interface FileStore {
 
 // 默认验证配置
 const DEFAULT_VALIDATION_CONFIG: FileValidationConfig = {
-  maxFileSize: 2 * 1024 * 1024,        // 2MB
-  allowedTypes: [],                    // 不限制文件类型
-  maxConcurrentUploads: 10             // 增加最大并发数到10
+  maxFileSize: 200 * 1024,        // 200KB
+  allowedTypes: [],               // 不限制文件类型
+  maxConcurrentUploads: 10        // 增加最大并发数到10
 };
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -35,7 +36,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
   files: [],
   isProcessing: false,
   currentProcessingCount: 0,
-  validationConfig: DEFAULT_VALIDATION_CONFIG,
+  maxConcurrentProcessing: 5, // 设置最大并行处理数量为5
+  validationConfig: {
+    maxFileSize: 200 * 1024,        // 200KB
+    allowedTypes: [],               // 不限制文件类型
+    maxConcurrentUploads: 5
+  },
 
   // 添加文件
   addFiles: (newFiles) => {
@@ -78,7 +84,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   // 处理文件
   processFile: async (id, showNotification = true) => {
-    const { files, updateFile, validationConfig } = get();
+    const { files, updateFile, maxConcurrentProcessing } = get();
     const fileInfo = files.find((f) => f.id === id);
     
     if (!fileInfo) {
@@ -105,22 +111,23 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }
     
     // 检查是否超过最大并发数
-    if (get().currentProcessingCount >= validationConfig.maxConcurrentUploads) {
-      // 不再显示错误提示，而是等待处理
+    if (get().currentProcessingCount >= maxConcurrentProcessing) {
+      // 更新文件状态为等待中
       updateFile(id, {
         status: 'pending',
         error: '等待处理中...'
       });
 
-      // 等待其他文件处理完成后自动处理
-      const checkAndProcess = setInterval(() => {
-        if (get().currentProcessingCount < validationConfig.maxConcurrentUploads) {
-          clearInterval(checkAndProcess);
-          get().processFile(id, showNotification);
-        }
-      }, 500);
-
-      return;
+      // 创建一个Promise来等待处理槽位
+      return new Promise<void>((resolve) => {
+        const checkAndProcess = setInterval(() => {
+          if (get().currentProcessingCount < maxConcurrentProcessing) {
+            clearInterval(checkAndProcess);
+            // 递归调用processFile
+            resolve(get().processFile(id, showNotification));
+          }
+        }, 500);
+      });
     }
 
     // 更新处理计数
