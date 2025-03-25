@@ -22,13 +22,17 @@ interface FileStore {
   setProcessing: (isProcessing: boolean) => void;
   processFile: (id: string, showNotification?: boolean) => Promise<void>;
   cancelProcessing: (id: string) => void;
+  updateValidationConfig: (config: Partial<FileValidationConfig>) => void;
 }
 
 // 默认验证配置
 const DEFAULT_VALIDATION_CONFIG: FileValidationConfig = {
   maxFileSize: 200 * 1024,        // 200KB
   allowedTypes: [],               // 不限制文件类型
-  maxConcurrentUploads: 10        // 增加最大并发数到10
+  maxConcurrentUploads: 10,       // 增加最大并发数到10
+  autoSplitFiles: true,           // 默认启用自动分割
+  splitOverlapPercent: 8,         // 8%的重叠
+  maxChunkSize: 2000              // 分块大小为2000个token（约8000字符）
 };
 
 export const useFileStore = create<FileStore>((set, get) => ({
@@ -40,7 +44,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
   validationConfig: {
     maxFileSize: 200 * 1024,        // 200KB
     allowedTypes: [],               // 不限制文件类型
-    maxConcurrentUploads: 5
+    maxConcurrentUploads: 5,
+    autoSplitFiles: true,           // 默认启用自动分割
+    splitOverlapPercent: 8,         // 8%的重叠
+    maxChunkSize: 2000              // 分块大小为2000个token（约8000字符）
   },
 
   // 添加文件
@@ -96,16 +103,16 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const { currentAgent } = useAgentStore.getState();
     
     if (!currentAgent) {
-      if (showNotification) notify.error('请先选择一个智能体');
+      if (showNotification) notify.error('请先选择智能体');
       return;
     }
     
     // 检查API是否已配置
     if (!checkAPIConfigured()) {
-      if (showNotification) notify.error('OpenAI API 尚未配置，请在设置中配置API密钥');
+      if (showNotification) notify.error('请配置API密钥');
       updateFile(id, {
         status: 'failed',
-        error: 'API 尚未配置'
+        error: 'API未配置'
       });
       return;
     }
@@ -115,7 +122,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       // 更新文件状态为等待中
       updateFile(id, {
         status: 'pending',
-        error: '等待处理中...'
+        error: '等待处理...'
       });
 
       // 创建一个Promise来等待处理槽位
@@ -136,7 +143,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }));
 
     // 显示加载提示
-    const toastId = showNotification ? notify.loading(`正在处理文件 "${fileInfo.name}"...`) : null;
+    const toastId = showNotification ? notify.loading(`处理中...`) : null;
 
     try {
       // 更新状态为处理中
@@ -149,7 +156,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         const file = fileInput?.files ? Array.from(fileInput.files).find(f => f.name === fileInfo.name) : null;
 
         if (!file) {
-          throw new Error('无法获取文件内容');
+          throw new Error('无法获取内容');
         }
 
         // 读取文件内容
@@ -169,7 +176,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
       // 更新提示
       if (showNotification && toastId) {
-        notify.update(toastId, `文件 "${fileInfo.name}" 处理完成`, 'success');
+        notify.update(toastId, `处理完成`, 'success');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
@@ -179,7 +186,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
       // 更新提示
       if (showNotification && toastId) {
-        notify.update(toastId, `文件 "${fileInfo.name}" ${errorMessage}`, 'error');
+        notify.update(toastId, `处理失败`, 'error');
       }
     } finally {
       // 更新处理计数
@@ -196,9 +203,16 @@ export const useFileStore = create<FileStore>((set, get) => ({
     if (file) {
       updateFile(id, {
         status: 'failed',
-        error: '用户取消'
+        error: '已取消'
       });
-      notify.success(`已取消处理文件 "${file.name}"`);
+      notify.success(`已取消处理`);
     }
+  },
+
+  // 更新验证配置
+  updateValidationConfig: (config) => {
+    set((state) => ({
+      validationConfig: { ...state.validationConfig, ...config }
+    }));
   }
 })); 

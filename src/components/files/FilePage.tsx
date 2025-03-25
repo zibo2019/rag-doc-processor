@@ -4,7 +4,6 @@ import { FileList } from './FileList';
 import { AgentPanel } from '../agents/AgentPanel';
 import { useFileStore } from '../../stores/fileStore';
 import { useAgentStore } from '../../stores/agentStore';
-import { convertToFileInfo } from '../../utils/file';
 import { notify } from '../../utils/notification';
 import { checkAPIConfigured } from '../../api/openai/client';
 import { AgentConfig } from '../../types/agent';
@@ -76,9 +75,9 @@ const FilePage: React.FC = () => {
     // 显示处理结果通知
     const { success, failed } = processingStatus;
     if (failed === 0) {
-      notify.success(`已成功处理 ${success} 个文件`);
+      notify.success(`处理完成，成功${success}个`);
     } else {
-      notify.warning(`处理完成: ${success} 成功, ${failed} 失败`);
+      notify.warning(`处理完成：${success}成功，${failed}失败`);
     }
   };
 
@@ -86,18 +85,18 @@ const FilePage: React.FC = () => {
   const handleProcessFiles = async () => {
     // 验证是否选择了文件和智能体
     if (!selectedAgentId) {
-      notify.error('请先选择一个智能体');
+      notify.error('请先选择智能体');
       return;
     }
 
     if (selectedFiles.length === 0) {
-      notify.error('请选择至少一个文件');
+      notify.error('请选择文件');
       return;
     }
 
     // 检查API是否已配置
     if (!checkAPIConfigured()) {
-      notify.error('OpenAI API 尚未配置，请在设置中配置API密钥');
+      notify.error('请配置API密钥');
       return;
     }
 
@@ -120,7 +119,7 @@ const FilePage: React.FC = () => {
           model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
           // 添加缺失的必要字段
           rules: {
-            maxTokens: 2048,
+            maxTokens: 8192,
             temperature: 0.7
           },
           isActive: true
@@ -191,7 +190,7 @@ const FilePage: React.FC = () => {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
       // 关闭模态框并显示错误提示
       setShowProcessingModal(false);
-      notify.error(`批量处理文件时发生错误: ${errorMessage}`);
+      notify.error(`批量处理失败: ${errorMessage}`);
     }
   };
 
@@ -212,11 +211,11 @@ const FilePage: React.FC = () => {
         }
       });
       
-      notify.success('已清空所有处理结果');
+      notify.success('已清空结果');
     } else {
       // 清除所有文件
       files.forEach(file => removeFile(file.id));
-      notify.success('已清空所有文件');
+      notify.success('已清空文件');
     }
     
     // 清空选择
@@ -263,13 +262,13 @@ const FilePage: React.FC = () => {
   const handleProcessSingleFile = async (fileId: string) => {
     // 验证是否选择了智能体
     if (!selectedAgentId) {
-      notify.error('请先选择一个智能体');
+      notify.error('请先选择智能体');
       return;
     }
 
     // 检查API是否已配置
     if (!checkAPIConfigured()) {
-      notify.error('OpenAI API 尚未配置，请在设置中配置API密钥');
+      notify.error('请配置API密钥');
       return;
     }
 
@@ -310,7 +309,7 @@ const FilePage: React.FC = () => {
       await processFile(fileId, true);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
-      notify.error(`处理文件失败: ${errorMessage}`);
+      notify.error(`处理失败: ${errorMessage}`);
     }
   };
 
@@ -337,9 +336,8 @@ const FilePage: React.FC = () => {
       {/* 文件上传组件 */}
       <div className="mb-6">
         <FileUpload
-          onFilesSelected={async (files) => {
-            const fileInfoPromises = Array.from(files).map(file => convertToFileInfo(file));
-            const fileInfos = await Promise.all(fileInfoPromises);
+          onFilesSelected={(fileInfos) => {
+            // 直接添加FileInfo数组
             addFiles(fileInfos);
           }}
           onFileValidated={updateFile}
