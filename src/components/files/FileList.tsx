@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { FileInfo } from '../../types/file';
 import clsx from 'clsx';
+import { FilePreview } from './FilePreview';
 
 interface FileListProps {
   files: FileInfo[];
@@ -72,6 +73,9 @@ export const FileList: React.FC<FileListProps> = ({
   onSelectFile,
   className
 }) => {
+  // 预览状态
+  const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
+
   if (files.length === 0) {
     return (
       <div className={clsx('text-center py-8 text-gray-500', className)}>
@@ -85,7 +89,7 @@ export const FileList: React.FC<FileListProps> = ({
       {files.map((file) => (
         <div
           key={file.id}
-          className="flex items-center justify-between p-4 bg-white rounded-lg shadow"
+          className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200"
         >
           {/* 选择框 */}
           {onSelectFile && (
@@ -100,7 +104,10 @@ export const FileList: React.FC<FileListProps> = ({
           )}
 
           {/* 文件信息 */}
-          <div className="flex-1 min-w-0 mr-4">
+          <div 
+            className="flex-1 min-w-0 mr-4 cursor-pointer"
+            onClick={() => setPreviewFile(file)}
+          >
             <div className="flex items-center">
               <h3 className="text-sm font-medium text-gray-900 truncate">
                 {file.name}
@@ -150,9 +157,25 @@ export const FileList: React.FC<FileListProps> = ({
                 删除
               </button>
             )}
+            {/* 预览按钮 */}
+            <button
+              onClick={() => setPreviewFile(file)}
+              className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+            >
+              预览
+            </button>
           </div>
         </div>
       ))}
+
+      {/* 预览弹窗 */}
+      {previewFile && (
+        <FilePreview
+          file={previewFile}
+          isOpen={true}
+          onClose={() => setPreviewFile(null)}
+        />
+      )}
     </div>
   );
 }; 

@@ -56,8 +56,9 @@ function App() {
         {/* 文件上传组件 */}
         <div className="mb-8">
           <FileUpload
-            onFilesSelected={(files) => {
-              const fileInfos = Array.from(files).map(file => convertToFileInfo(file));
+            onFilesSelected={async (files) => {
+              const fileInfoPromises = Array.from(files).map(file => convertToFileInfo(file));
+              const fileInfos = await Promise.all(fileInfoPromises);
               addFiles(fileInfos);
             }}
             onFileValidated={updateFile}

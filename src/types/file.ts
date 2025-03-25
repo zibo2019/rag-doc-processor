@@ -12,7 +12,8 @@ export interface FileInfo {
   size: number;         // 文件大小（字节）
   type: string;         // 文件类型
   lastModified: number; // 最后修改时间
-  content?: string;     // 文件内容
+  rawContent?: string;  // 文件原始内容
+  content?: string;     // 处理后的文件内容
   status: FileStatus;   // 文件状态
   error?: string;       // 错误信息
 }

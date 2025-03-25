@@ -10,13 +10,17 @@ export const generateFileId = (): string => {
 /**
  * 将原生File对象转换为FileInfo对象
  */
-export const convertToFileInfo = (file: File): FileInfo => {
+export const convertToFileInfo = async (file: File): Promise<FileInfo> => {
+  // 读取文件原始内容
+  const rawContent = await readFileContent(file);
+  
   return {
     id: generateFileId(),
     name: file.name,
     size: file.size,
     type: file.type,
     lastModified: file.lastModified,
+    rawContent,
     status: 'pending'
   };
 };
