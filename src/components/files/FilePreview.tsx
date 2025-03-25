@@ -17,8 +17,10 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  // 获取要显示的内容
-  const displayContent = file.rawContent || file.content;
+  // 判断文件是否有处理后的内容
+  const hasProcessedContent = !!file.content;
+  const originalContent = file.rawContent || '';
+  const processedContent = file.content || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -28,18 +30,23 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
         onClick={onClose}
       />
       
-      {/* 预览内容 */}
-      <div className="relative w-full max-w-4xl max-h-[80vh] bg-white rounded-lg shadow-xl overflow-hidden">
+      {/* 预览内容 - 全屏模式 */}
+      <div className="relative w-[95vw] h-[90vh] bg-white rounded-lg shadow-xl overflow-hidden flex flex-col">
         {/* 预览头部 */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center space-x-2">
             <h3 className="text-lg font-medium">{file.name}</h3>
-            {file.content && file.content !== file.rawContent && (
-              <span className="text-xs text-gray-500">
-                (处理完成后内容可能会有变化)
+            {hasProcessedContent ? (
+              <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                已处理
+              </span>
+            ) : (
+              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full">
+                未处理
               </span>
             )}
           </div>
+          
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded-full"
@@ -60,17 +67,43 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
           </button>
         </div>
 
-        {/* 预览内容 */}
-        <div className="p-6 overflow-auto max-h-[calc(80vh-8rem)]">
-          {displayContent ? (
-            <pre className="whitespace-pre-wrap font-mono text-sm text-left">
-              {displayContent}
-            </pre>
-          ) : (
-            <div className="text-left text-gray-500">
-              无法读取文件内容
+        {/* 预览内容 - 分栏显示 */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* 左侧 - 原始内容 */}
+          <div className="w-1/2 flex flex-col border-r">
+            <div className="p-2 bg-gray-100 border-b text-center">
+              <h4 className="font-medium text-gray-700">原始内容</h4>
             </div>
-          )}
+            <div className="p-4 overflow-auto flex-1">
+              {originalContent ? (
+                <pre className="whitespace-pre-wrap font-mono text-sm text-left">
+                  {originalContent}
+                </pre>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  无原始内容
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* 右侧 - 处理后内容 */}
+          <div className="w-1/2 flex flex-col">
+            <div className="p-2 bg-gray-100 border-b text-center">
+              <h4 className="font-medium text-gray-700">处理后内容</h4>
+            </div>
+            <div className="p-4 overflow-auto flex-1">
+              {hasProcessedContent ? (
+                <pre className="whitespace-pre-wrap font-mono text-sm text-left">
+                  {processedContent}
+                </pre>
+              ) : (
+                <div className="text-center py-4 text-gray-500">
+                  尚未处理
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -49,8 +49,7 @@ export const Header: React.FC = () => {
                 </div>
                 {/* Logo 文字 */}
                 <div className="flex flex-col">
-                  <span className="text-xl font-bold text-gray-900">统用文档处理器</span>
-                  <span className="text-xs text-gray-500">智能文档处理解决方案</span>
+                  <span className="text-xl font-bold text-gray-900">AI文档批量处理器</span>
                 </div>
               </Link>
             </div>

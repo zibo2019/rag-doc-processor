@@ -12,6 +12,7 @@ export const createOpenAIClient = () => {
   return new OpenAI({
     apiKey: apiKey,
     baseURL: baseUrl,
+    dangerouslyAllowBrowser: true, // 允许在浏览器环境中使用
   });
 };
 

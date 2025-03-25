@@ -76,7 +76,8 @@ const FileListItem: React.FC<{
   onPreview: (file: FileInfo) => void;
   isSelected?: boolean;
   onSelect?: (id: string) => void;
-}> = ({ file, onRemove, onCancel, onRetry, onPreview, isSelected, onSelect }) => (
+  isProcessedView?: boolean; // 新增参数，标识是否为处理后视图
+}> = ({ file, onRemove, onCancel, onRetry, onPreview, isSelected, onSelect, isProcessedView }) => (
   <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200">
     {/* 选择框 */}
     {onSelect && (
@@ -107,6 +108,11 @@ const FileListItem: React.FC<{
         >
           {getStatusText(file.status)}
         </span>
+        {isProcessedView && (
+          <span className="ml-2 px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded-full">
+            处理后
+          </span>
+        )}
       </div>
       <div className="mt-1 flex items-center text-sm text-gray-500">
         <span>{formatFileSize(file.size)}</span>
@@ -186,18 +192,25 @@ export const FileList: React.FC<FileListProps> = ({
         <div>
           <h2 className="text-lg font-medium text-gray-900 mb-4">原始文件</h2>
           <div className="space-y-4">
-            {safeOriginalFiles.map((file) => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                onRemove={onRemove}
-                onCancel={onCancel}
-                onRetry={onRetry}
-                onPreview={setPreviewFile}
-                isSelected={selectedFiles.includes(file.id)}
-                onSelect={onSelectFile}
-              />
-            ))}
+            {safeOriginalFiles.length > 0 ? (
+              safeOriginalFiles.map((file) => (
+                <FileListItem
+                  key={file.id}
+                  file={file}
+                  onRemove={onRemove}
+                  onCancel={onCancel}
+                  onRetry={onRetry}
+                  onPreview={setPreviewFile}
+                  isSelected={selectedFiles.includes(file.id)}
+                  onSelect={onSelectFile}
+                  isProcessedView={false}
+                />
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                暂无原始文件
+              </div>
+            )}
           </div>
         </div>
 
@@ -205,18 +218,25 @@ export const FileList: React.FC<FileListProps> = ({
         <div>
           <h2 className="text-lg font-medium text-gray-900 mb-4">处理后文件</h2>
           <div className="space-y-4">
-            {safeProcessedFiles.map((file) => (
-              <FileListItem
-                key={file.id}
-                file={file}
-                onRemove={onRemove}
-                onCancel={onCancel}
-                onRetry={onRetry}
-                onPreview={setPreviewFile}
-                isSelected={selectedFiles.includes(file.id)}
-                onSelect={onSelectFile}
-              />
-            ))}
+            {safeProcessedFiles.length > 0 ? (
+              safeProcessedFiles.map((file) => (
+                <FileListItem
+                  key={file.id}
+                  file={file}
+                  onRemove={onRemove}
+                  onCancel={onCancel}
+                  onRetry={onRetry}
+                  onPreview={setPreviewFile}
+                  isSelected={selectedFiles.includes(file.id)}
+                  onSelect={onSelectFile}
+                  isProcessedView={true}
+                />
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                暂无处理后文件
+              </div>
+            )}
           </div>
         </div>
       </div>
