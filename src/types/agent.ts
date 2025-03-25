@@ -12,7 +12,7 @@ export const agentBaseSchema = z.object({
 
 // 智能体处理规则的验证模式
 export const agentRuleSchema = z.object({
-  maxTokens: z.number().min(100).max(4000), // token 限制
+  maxTokens: z.number().min(100), // token 限制
   temperature: z.number().min(0).max(1), // 温度参数
 });
 
