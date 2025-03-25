@@ -38,10 +38,11 @@ const loadFromStorage = () => {
         if (agent.lastUsed) agent.lastUsed = new Date(agent.lastUsed);
       });
       
+      // 无论如何都不加载currentAgent
       return {
         agents,
         selectedAgentId: state.selectedAgentId || null,
-        currentAgent: null // 初始化时不设置currentAgent，防止自动打开编辑模态框
+        currentAgent: null // 始终返回null
       };
     }
   } catch (error) {
@@ -57,8 +58,13 @@ const loadFromStorage = () => {
 export const useAgentStore = create<AgentStore>()(
   persist(
     (set) => {
-      // 加载初始状态
-      const initialState = loadFromStorage();
+      // 加载初始状态，但确保currentAgent初始为null
+      const { agents, selectedAgentId } = loadFromStorage();
+      const initialState = {
+        agents,
+        selectedAgentId,
+        currentAgent: null // 确保初始状态下currentAgent为null
+      };
 
       return {
         ...initialState,
@@ -68,11 +74,11 @@ export const useAgentStore = create<AgentStore>()(
         fetchAgents: async () => {
           set({ isLoading: true, error: null });
           try {
-            const { agents, selectedAgentId, currentAgent } = loadFromStorage();
+            const { agents, selectedAgentId } = loadFromStorage();
             set({ 
               agents, 
               selectedAgentId,
-              currentAgent,
+              currentAgent: null, // 明确设置为null，而不是从localStorage加载
               isLoading: false 
             });
           } catch (error) {
@@ -106,7 +112,11 @@ export const useAgentStore = create<AgentStore>()(
               createdAt: new Date(),
               updatedAt: new Date(),
               // 保留model字段
-              model: extendedAgent.model
+              model: extendedAgent.model,
+              // 保存规则信息
+              rules: extendedAgent.rules,
+              // 保存启用状态
+              isActive: extendedAgent.isActive
             };
 
             set((state) => ({
@@ -151,6 +161,14 @@ export const useAgentStore = create<AgentStore>()(
                 model: extendedAgent.model !== undefined 
                   ? extendedAgent.model 
                   : (updatedAgents[index] as ExtendedAgentListItem).model,
+                // 保存规则信息
+                rules: extendedAgent.rules !== undefined
+                  ? extendedAgent.rules
+                  : (updatedAgents[index] as ExtendedAgentListItem).rules,
+                // 保存启用状态
+                isActive: extendedAgent.isActive !== undefined
+                  ? extendedAgent.isActive
+                  : (updatedAgents[index] as ExtendedAgentListItem).isActive,
                 updatedAt: new Date(),
               };
 
@@ -164,6 +182,10 @@ export const useAgentStore = create<AgentStore>()(
                   model: extendedAgent.model !== undefined 
                     ? extendedAgent.model 
                     : (state.currentAgent as ExtendedAgentConfig).model,
+                  // 保存规则信息
+                  rules: extendedAgent.rules !== undefined
+                    ? extendedAgent.rules
+                    : (state.currentAgent as ExtendedAgentConfig).rules,
                   updatedAt: new Date(),
                 };
               }
@@ -224,7 +246,8 @@ export const useAgentStore = create<AgentStore>()(
       partialize: (state) => ({ 
         agents: state.agents,
         selectedAgentId: state.selectedAgentId,
-        currentAgent: state.currentAgent
+        // 不持久化currentAgent状态，避免页面重新加载时自动打开编辑模态框
+        // currentAgent: state.currentAgent
       }),
     }
   )

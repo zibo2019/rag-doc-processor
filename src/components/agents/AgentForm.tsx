@@ -43,9 +43,9 @@ export const AgentForm: React.FC<AgentFormProps> = ({
     defaultValues: processedInitialData || {
       name: '',
       prompt: '',
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o',
       rules: {
-        maxTokens: 2000,
+        maxTokens: 64000,
         temperature: 0.7,
       },
       isActive: true,
@@ -74,102 +74,111 @@ export const AgentForm: React.FC<AgentFormProps> = ({
   console.log('Form Errors:', errors);
 
   return (
-    <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-6">
-      <div className="space-y-4">
-        {/* 基本信息 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            名称 *
-          </label>
-          <input
-            type="text"
-            {...register('name')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-          {errors.name && (
-            <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-          )}
-        </div>
+    <form onSubmit={handleSubmit(onSubmitForm)} className="flex flex-col h-full">
+      {/* 表单内容区域 */}
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* 左侧：基本信息和规则配置 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium border-b pb-2">基本信息</h3>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                名称 *
+              </label>
+              <input
+                type="text"
+                {...register('name')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+              />
+              {errors.name && (
+                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            模型 *
-          </label>
-          <input
-            type="text"
-            {...register('model')}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            placeholder="例如: gpt-3.5-turbo, gpt-4"
-          />
-          {errors.model && (
-            <p className="mt-1 text-sm text-red-600">{errors.model.message}</p>
-          )}
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                模型 *
+              </label>
+              <input
+                type="text"
+                {...register('model')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                placeholder="例如: gpt-4o, gpt-4"
+              />
+              {errors.model && (
+                <p className="mt-1 text-sm text-red-600">{errors.model.message}</p>
+              )}
+            </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">
-            提示词 *
-          </label>
-          <textarea
-            {...register('prompt')}
-            rows={3}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            placeholder="请输入提示词"
-          />
-          {errors.prompt && (
-            <p className="mt-1 text-sm text-red-600">{errors.prompt.message}</p>
-          )}
-        </div>
+            {/* 处理规则 */}
+            <div className="space-y-4 pt-2">
+              <h3 className="text-lg font-medium border-b pb-2">规则配置</h3>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  最大Token数 *
+                </label>
+                <input
+                  type="number"
+                  {...register('rules.maxTokens', { valueAsNumber: true })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                {errors.rules?.maxTokens && (
+                  <p className="mt-1 text-sm text-red-600">{errors.rules.maxTokens.message}</p>
+                )}
+              </div>
 
-        {/* 处理规则 */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">处理规则配置</h3>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              最大Token数 *
-            </label>
-            <input
-              type="number"
-              {...register('rules.maxTokens', { valueAsNumber: true })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-            {errors.rules?.maxTokens && (
-              <p className="mt-1 text-sm text-red-600">{errors.rules.maxTokens.message}</p>
-            )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  温度参数 *
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  {...register('rules.temperature', { valueAsNumber: true })}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                />
+                {errors.rules?.temperature && (
+                  <p className="mt-1 text-sm text-red-600">{errors.rules.temperature.message}</p>
+                )}
+              </div>
+            </div>
+
+            {/* 状态开关 */}
+            <div className="flex items-center pt-4">
+              <input
+                type="checkbox"
+                {...register('isActive')}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <label className="ml-2 block text-sm text-gray-900">
+                启用该智能体
+              </label>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              温度参数 *
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              {...register('rules.temperature', { valueAsNumber: true })}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-            {errors.rules?.temperature && (
-              <p className="mt-1 text-sm text-red-600">{errors.rules.temperature.message}</p>
-            )}
+          {/* 右侧：提示词配置 */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium border-b pb-2">提示词设置</h3>
+            <div className="h-full">
+              <label className="block text-sm font-medium text-gray-700">
+                提示词 *
+              </label>
+              <textarea
+                {...register('prompt')}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 h-[calc(100vh-32rem)]"
+                placeholder="请输入提示词"
+              />
+              {errors.prompt && (
+                <p className="mt-1 text-sm text-red-600">{errors.prompt.message}</p>
+              )}
+            </div>
           </div>
-        </div>
-
-        {/* 状态开关 */}
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            {...register('isActive')}
-            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-          />
-          <label className="ml-2 block text-sm text-gray-900">
-            启用该智能体
-          </label>
         </div>
       </div>
 
-      {/* 按钮组 */}
-      <div className="flex justify-end space-x-4">
+      {/* 固定在底部的按钮组 */}
+      <div className="flex justify-end space-x-4 px-4 py-3 bg-gray-50 border-t">
         <button
           type="button"
           onClick={onCancel}

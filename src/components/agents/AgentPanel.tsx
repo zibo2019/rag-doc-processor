@@ -21,11 +21,18 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     setCurrentAgent
   } = useAgentStore();
 
+  // 过滤出启用的智能体
+  const activeAgents = agents.filter(agent => {
+    const extendedAgent = agent as ExtendedAgentListItem;
+    // 如果 isActive 未定义或为 true，则视为启用状态
+    return extendedAgent.isActive !== false;
+  });
+  
   // 在组件加载时设置默认选中的智能体
   useEffect(() => {
-    if (!isLoading && agents.length > 0 && !selectedAgentId) {
-      // 如果没有选中的智能体，选择第一个
-      const firstAgent = agents[0];
+    if (!isLoading && activeAgents.length > 0 && !selectedAgentId) {
+      // 如果没有选中的智能体，选择第一个启用的智能体
+      const firstAgent = activeAgents[0];
       setSelectedAgentId(firstAgent.id || null);
       
       // 同时设置currentAgent
@@ -37,10 +44,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         createdAt: firstAgent.createdAt,
         updatedAt: firstAgent.updatedAt,
         // 添加模型字段，如果存在则使用，否则使用默认值
-        model: (firstAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
+        model: (firstAgent as ExtendedAgentListItem).model || 'gpt-4o',
         // 添加缺失的必要字段
         rules: {
-          maxTokens: 2048,
+          maxTokens: 64000,
           temperature: 0.7
         },
         isActive: true
@@ -48,13 +55,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       
       setCurrentAgent(agentConfig as AgentConfig);
     }
-  }, [agents, isLoading, selectedAgentId, setSelectedAgentId, setCurrentAgent]);
+  }, [activeAgents, isLoading, selectedAgentId, setSelectedAgentId, setCurrentAgent]);
 
   const handleAgentSelect = (agentId: string) => {
     setSelectedAgentId(agentId);
     
     // 找到选中的智能体实例
-    const selectedAgent = agents.find(agent => agent.id === agentId);
+    const selectedAgent = activeAgents.find(agent => agent.id === agentId);
     if (selectedAgent) {
       // 将AgentListItem转换为ExtendedAgentConfig
       // 创建一个基本的ExtendedAgentConfig结构，填充必要的字段
@@ -66,10 +73,10 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         createdAt: selectedAgent.createdAt,
         updatedAt: selectedAgent.updatedAt,
         // 添加模型字段，如果存在则使用，否则使用默认值
-        model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
+        model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-4o',
         // 添加缺失的必要字段
         rules: {
-          maxTokens: 2048,
+          maxTokens: 64000,
           temperature: 0.7
         },
         isActive: true
@@ -92,13 +99,13 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
       <div className="relative p-3">
         <div className="overflow-x-auto -mx-3 px-3">
           <AgentSelector
-            agents={agents}
+            agents={activeAgents}
             selectedAgentId={selectedAgentId}
             onSelectAgent={handleAgentSelect}
             isLoading={isLoading}
           />
         </div>
-        {agents.length > 0 && (
+        {activeAgents.length > 0 && (
           <>
             <div className="pointer-events-none absolute top-0 bottom-0 left-3 w-6 bg-gradient-to-r from-white to-transparent"></div>
             <div className="pointer-events-none absolute top-0 bottom-0 right-3 w-6 bg-gradient-to-l from-white to-transparent"></div>
