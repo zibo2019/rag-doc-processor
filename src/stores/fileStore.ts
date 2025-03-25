@@ -146,7 +146,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     try {
       // 更新状态为处理中
-      updateFile(id, { status: 'uploading' });
+      updateFile(id, { 
+        status: 'uploading',
+        error: undefined // 清除之前的错误信息
+      });
 
       // 确保文件内容已加载
       if (!fileInfo.rawContent) {
@@ -170,7 +173,8 @@ export const useFileStore = create<FileStore>((set, get) => ({
       // 更新文件内容和状态
       updateFile(id, {
         content: processedContent,
-        status: 'completed'
+        status: 'completed',
+        error: undefined // 清除错误信息
       });
 
       // 更新提示，只在单独处理时显示完成提示
@@ -181,7 +185,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : '处理失败';
       updateFile(id, {
         status: 'failed',
-        error: errorMessage
+        error: errorMessage // 确保错误信息设置正确
       });
       // 更新提示，错误情况一定要提示
       if (showNotification && toastId) {

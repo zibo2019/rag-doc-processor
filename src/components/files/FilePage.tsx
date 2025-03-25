@@ -9,6 +9,9 @@ import { checkAPIConfigured } from '../../api/openai/client';
 import { AgentConfig } from '../../types/agent';
 import { ExtendedAgentConfig, ExtendedAgentListItem } from '../../types/agentExtend';
 import { ProcessingModal, ProcessingStatus } from '../processing/ProcessingModal';
+// 引入JSZip和FileSaver
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 // 定义处理任务的结果类型
 interface ProcessingTaskResult {
@@ -31,8 +34,9 @@ const FilePage: React.FC = () => {
 
   const { currentAgent, selectedAgentId } = useAgentStore();
 
-  // 选中的文件ID列表
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+  // 选中的文件ID列表，分开保存原始文件和处理后文件的选择状态
+  const [originalSelectedFiles, setOriginalSelectedFiles] = useState<string[]>([]);
+  const [processedSelectedFiles, setProcessedSelectedFiles] = useState<string[]>([]);
   // 处理进度模态框状态
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   // 处理进度状态
@@ -45,12 +49,28 @@ const FilePage: React.FC = () => {
   });
 
   // 处理文件选择
-  const handleFileSelect = (id: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(id) 
-        ? prev.filter(fileId => fileId !== id)
-        : [...prev, id]
-    );
+  const handleFileSelect = (id: string, isProcessed: boolean) => {
+    console.log(`选择文件: ${id}, 是处理后文件: ${isProcessed}`); // 添加调试输出
+    
+    if (isProcessed) {
+      // 处理处理后文件的选择
+      setProcessedSelectedFiles(prev => {
+        const newSelection = prev.includes(id) 
+          ? prev.filter(fileId => fileId !== id)
+          : [...prev, id];
+        console.log(`处理后文件选择更新: `, newSelection); // 添加调试输出
+        return newSelection;
+      });
+    } else {
+      // 处理原始文件的选择
+      setOriginalSelectedFiles(prev => {
+        const newSelection = prev.includes(id) 
+          ? prev.filter(fileId => fileId !== id)
+          : [...prev, id];
+        console.log(`原始文件选择更新: `, newSelection); // 添加调试输出
+        return newSelection;
+      });
+    }
   };
 
   // 处理单个文件但不显示通知
@@ -88,7 +108,12 @@ const FilePage: React.FC = () => {
       return;
     }
 
-    if (selectedFiles.length === 0) {
+    // 确保选择了要处理的文件
+    const filesToProcess = originalSelectedFiles.filter(fileId => 
+      files.some(file => file.id === fileId)
+    );
+    
+    if (filesToProcess.length === 0) {
       notify.error('请选择文件');
       return;
     }
@@ -133,7 +158,7 @@ const FilePage: React.FC = () => {
     
     // 初始化处理状态
     setProcessingStatus({
-      total: selectedFiles.length,
+      total: filesToProcess.length,
       processed: 0,
       success: 0,
       failed: 0,
@@ -145,7 +170,7 @@ const FilePage: React.FC = () => {
 
     try {
       // 创建处理任务数组
-      const processingTasks = selectedFiles.map(async (fileId) => {
+      const processingTasks = filesToProcess.map(async (fileId) => {
         try {
           // 获取文件信息
           const file = files.find(f => f.id === fileId);
@@ -164,6 +189,12 @@ const FilePage: React.FC = () => {
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '处理失败';
           console.error(`处理文件 ${fileId} 失败:`, errorMessage);
+          
+          // 更新文件状态和错误信息
+          updateFile(fileId, {
+            status: 'failed',
+            error: errorMessage
+          });
           
           // 更新处理状态
           setProcessingStatus(prev => ({
@@ -202,10 +233,11 @@ const FilePage: React.FC = () => {
       // 如果是处理后文件列表，只清除处理结果，不删除文件
       files.forEach(file => {
         if (file.content !== undefined && file.content !== null && file.content !== '') {
-          // 清除content字段，将状态重置为有效
+          // 清除content字段，将状态重置为有效，同时清除错误信息
           updateFile(file.id, {
             content: undefined,
-            status: 'valid'
+            status: 'valid',
+            error: undefined
           });
         }
       });
@@ -217,7 +249,8 @@ const FilePage: React.FC = () => {
     }
     
     // 清空选择
-    setSelectedFiles([]);
+    setOriginalSelectedFiles([]);
+    setProcessedSelectedFiles([]);
   };
 
   // 处理下载选中的处理后文件
@@ -230,30 +263,56 @@ const FilePage: React.FC = () => {
       fileIds.includes(file.id) && file.content !== undefined && file.content !== null
     );
     
-    // 下载每个选中的文件
-    filesToDownload.forEach(file => {
+    // 如果只有一个文件，直接下载
+    if (filesToDownload.length === 1) {
+      const file = filesToDownload[0];
       // 创建Blob对象
       const blob = new Blob([file.content || ''], { type: 'text/plain' });
-      
-      // 创建下载链接
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       
       // 设置下载文件名，添加processed后缀
       const fileNameParts = file.name.split('.');
       const extension = fileNameParts.pop() || '';
       const baseName = fileNameParts.join('.');
-      a.download = `${baseName}_processed.${extension}`;
+      const fileName = `${baseName}_processed.${extension}`;
       
-      // 触发下载
-      document.body.appendChild(a);
-      a.click();
+      // 下载文件
+      saveAs(blob, fileName);
       
-      // 清理
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
+      notify.success(`已下载文件: ${fileName}`);
+    } 
+    // 如果有多个文件，创建ZIP压缩包
+    else if (filesToDownload.length > 1) {
+      const zip = new JSZip();
+      
+      // 添加文件到压缩包
+      filesToDownload.forEach(file => {
+        const fileNameParts = file.name.split('.');
+        const extension = fileNameParts.pop() || '';
+        const baseName = fileNameParts.join('.');
+        const fileName = `${baseName}_processed.${extension}`;
+        
+        // 将文件内容添加到压缩包
+        zip.file(fileName, file.content || '');
+      });
+      
+      // 生成压缩包并下载
+      zip.generateAsync({ type: 'blob' })
+        .then(content => {
+          // 使用当前日期作为压缩包名称的一部分
+          const date = new Date();
+          const dateStr = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
+          const timeStr = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
+          
+          // 保存压缩包
+          saveAs(content, `处理后文件_${dateStr}_${timeStr}.zip`);
+          
+          notify.success(`已下载${filesToDownload.length}个文件的压缩包`);
+        })
+        .catch(error => {
+          console.error('创建压缩包失败:', error);
+          notify.error('创建压缩包失败，请重试');
+        });
+    }
   };
 
   // 处理单个文件的函数
@@ -361,7 +420,8 @@ const FilePage: React.FC = () => {
           onRemove={removeFile}
           onCancel={cancelProcessing}
           onRetry={(id) => processFile(id)}
-          selectedFiles={selectedFiles}
+          originalSelectedFiles={originalSelectedFiles}
+          processedSelectedFiles={processedSelectedFiles}
           onSelectFile={handleFileSelect}
           onProcessFiles={handleProcessFiles}
           onDownloadFiles={handleDownloadFiles}

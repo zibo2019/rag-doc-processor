@@ -79,8 +79,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             const splitFiles = await splitFile(fileInfo, validationConfig);
             
             if (splitFiles.length > 1) {
-              // 只在分割文件时显示提示
-              showSuccess(`已分割${splitFiles.length}份`);
               // 添加分割后的文件
               processedFiles.push(...splitFiles);
             } else {

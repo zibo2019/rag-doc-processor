@@ -9,8 +9,9 @@ interface FileListProps {
   onRemove: (id: string) => void;
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
-  selectedFiles?: string[];
-  onSelectFile?: (id: string) => void;
+  originalSelectedFiles: string[]; // 新增：存储原始文件选择状态
+  processedSelectedFiles: string[]; // 新增：存储处理后文件选择状态 
+  onSelectFile?: (id: string, isProcessed: boolean) => void; // 标识选择的是哪类文件
   onProcessFiles?: () => void; // 处理选中文件的回调
   onDownloadFiles?: (ids: string[]) => void; // 下载选中文件的回调
   onClearFiles?: (isProcessed: boolean) => void; // 清空文件列表的回调
@@ -79,7 +80,7 @@ const FileListItem: React.FC<{
   onRetry: (id: string) => void;
   onPreview: (file: FileInfo) => void;
   isSelected?: boolean;
-  onSelect?: (id: string) => void;
+  onSelect?: (id: string, isProcessed: boolean) => void;
   isProcessedView?: boolean; // 新增参数，标识是否为处理后视图
   onProcessSingle?: (id: string) => void; // 单个文件处理函数
   onDownloadSingle?: (id: string) => void; // 单个文件下载函数
@@ -91,7 +92,7 @@ const FileListItem: React.FC<{
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => onSelect(file.id)}
+          onChange={() => onSelect(file.id, !!isProcessedView)}
           className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
         />
       </div>
@@ -255,7 +256,8 @@ export const FileList: React.FC<FileListProps> = ({
   onRemove,
   onCancel,
   onRetry,
-  selectedFiles = [],
+  originalSelectedFiles = [],
+  processedSelectedFiles = [],
   onSelectFile,
   onProcessFiles,
   onDownloadFiles,
@@ -266,55 +268,40 @@ export const FileList: React.FC<FileListProps> = ({
   // 预览状态
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
   
-  // 独立的原始文件和处理后文件选择状态
-  const [originalSelectedFiles, setOriginalSelectedFiles] = useState<string[]>([]);
-  const [processedSelectedFiles, setProcessedSelectedFiles] = useState<string[]>([]);
-
   // 添加类型保护，确保是数组
   const safeOriginalFiles = Array.isArray(originalFiles) ? originalFiles : [];
   const safeProcessedFiles = Array.isArray(processedFiles) ? processedFiles : [];
-
+  
   // 处理原始文件的选择
   const handleOriginalFileSelect = (id: string) => {
-    setOriginalSelectedFiles(prev => 
-      prev.includes(id) 
-        ? prev.filter(fileId => fileId !== id)
-        : [...prev, id]
-    );
-    // 同时更新父组件的选择状态
-    if (onSelectFile) onSelectFile(id);
+    if (onSelectFile) {
+      onSelectFile(id, false);
+    }
   };
 
   // 处理处理后文件的选择
   const handleProcessedFileSelect = (id: string) => {
-    setProcessedSelectedFiles(prev => 
-      prev.includes(id) 
-        ? prev.filter(fileId => fileId !== id)
-        : [...prev, id]
-    );
-    // 同时更新父组件的选择状态
-    if (onSelectFile) onSelectFile(id);
+    if (onSelectFile) {
+      onSelectFile(id, true);
+    }
   };
 
   // 原始文件全选/取消全选
   const handleOriginalSelectAll = () => {
-    const newSelection = originalSelectedFiles.length === safeOriginalFiles.length 
-      ? [] 
-      : safeOriginalFiles.map(file => file.id);
+    const allSelected = safeOriginalFiles.every(file => originalSelectedFiles.includes(file.id));
+    console.log(`原始文件全选状态: ${allSelected}, 原始文件数: ${safeOriginalFiles.length}, 已选: ${originalSelectedFiles.length}`);
     
-    setOriginalSelectedFiles(newSelection);
-    
-    // 更新父组件的选择状态
-    if (onSelectFile && newSelection.length > originalSelectedFiles.length) {
-      newSelection.forEach(id => {
-        if (!selectedFiles.includes(id)) {
-          onSelectFile(id);
-        }
+    if (allSelected) {
+      // 取消全选 - 从选中列表中移除所有原始文件
+      safeOriginalFiles.forEach(file => {
+        if (onSelectFile) onSelectFile(file.id, false);
       });
-    } else if (onSelectFile && newSelection.length < originalSelectedFiles.length) {
-      originalSelectedFiles.forEach(id => {
-        if (selectedFiles.includes(id)) {
-          onSelectFile(id);
+    } else {
+      // 全选 - 将所有未选中的原始文件添加到选中列表
+      safeOriginalFiles.forEach(file => {
+        // 只有未选中的文件才需要添加
+        if (!originalSelectedFiles.includes(file.id) && onSelectFile) {
+          onSelectFile(file.id, false);
         }
       });
     }
@@ -322,23 +309,20 @@ export const FileList: React.FC<FileListProps> = ({
 
   // 处理后文件全选/取消全选
   const handleProcessedSelectAll = () => {
-    const newSelection = processedSelectedFiles.length === safeProcessedFiles.length 
-      ? [] 
-      : safeProcessedFiles.map(file => file.id);
+    const allSelected = safeProcessedFiles.every(file => processedSelectedFiles.includes(file.id));
+    console.log(`处理后文件全选状态: ${allSelected}, 处理后文件数: ${safeProcessedFiles.length}, 已选: ${processedSelectedFiles.length}`);
     
-    setProcessedSelectedFiles(newSelection);
-    
-    // 更新父组件的选择状态
-    if (onSelectFile && newSelection.length > processedSelectedFiles.length) {
-      newSelection.forEach(id => {
-        if (!selectedFiles.includes(id)) {
-          onSelectFile(id);
-        }
+    if (allSelected) {
+      // 取消全选 - 从选中列表中移除所有处理后文件
+      safeProcessedFiles.forEach(file => {
+        if (onSelectFile) onSelectFile(file.id, true);
       });
-    } else if (onSelectFile && newSelection.length < processedSelectedFiles.length) {
-      processedSelectedFiles.forEach(id => {
-        if (selectedFiles.includes(id)) {
-          onSelectFile(id);
+    } else {
+      // 全选 - 将所有未选中的处理后文件添加到选中列表
+      safeProcessedFiles.forEach(file => {
+        // 只有未选中的文件才需要添加
+        if (!processedSelectedFiles.includes(file.id) && onSelectFile) {
+          onSelectFile(file.id, true);
         }
       });
     }
