@@ -2,7 +2,7 @@
 
 <version>1.0.0</version>
 
-## Status: Draft
+## Status: approved
 
 ## Intro
 
@@ -63,7 +63,10 @@ RAG文档处理器是一个基于AI的文档批处理工具，专门设计用于
    - 异步处理机制，支持后台处理
    - 实时处理状态反馈
    - 支持处理任务的暂停/继续
-   - 文件大小：暂不限制
+   - 文件大小限制：
+     - 默认限制：2MB
+     - 支持自定义配置（通过系统设置）
+     - 最大不超过50MB（考虑浏览器内存限制）
 
 2. **可用性要求**
    - 直观的用户界面
@@ -135,6 +138,111 @@ RAG文档处理器是一个基于AI的文档批处理工具，专门设计用于
 | Radix UI | UI组件库 |
 | React Hook Form | 表单管理 |
 | Zod | 数据验证 |
+| Axios | HTTP客户端 |
+| Zustand | 状态管理 |
+| React Query | 服务端状态管理 |
+
+## Project Structure
+
+```text
+src/
+├── components/        # UI组件
+│   ├── agents/       # AI智能体相关组件
+│   ├── files/        # 文件处理相关组件
+│   └── common/       # 通用组件
+├── hooks/            # 自定义Hook
+├── api/             # API接口封装
+├── stores/          # 状态管理
+├── types/           # TypeScript类型定义
+└── utils/           # 工具函数
+```
+
+## System Architecture
+
+```mermaid
+graph TD
+    A[文件上传组件] --> B[文件管理Store]
+    B --> C[处理队列Store]
+    C --> D[API服务]
+    D --> E[OpenAI API]
+    D --> F[结果Store]
+    F --> G[文件下载组件]
+    H[智能体配置组件] --> D
+    I[系统配置Store] --> D
+```
+
+## 前端状态管理
+
+### 1. 应用状态
+```typescript
+interface AppState {
+  isLoading: boolean;
+  error: Error | null;
+  config: {
+    apiKey: string;
+    baseUrl: string;
+    maxConcurrent: number;
+  }
+}
+```
+
+### 2. 文件状态
+```typescript
+interface FileState {
+  files: FileInfo[];
+  queue: string[];
+  processing: string[];
+  completed: string[];
+  failed: string[];
+}
+```
+
+### 3. 智能体状态
+```typescript
+interface AgentState {
+  agents: Agent[];
+  selectedAgent: string | null;
+  isConfiguring: boolean;
+}
+```
+
+## API集成
+
+### OpenAI API配置
+```typescript
+interface OpenAIConfig {
+  apiKey: string;
+  baseURL: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+}
+```
+
+### 错误处理
+```typescript
+interface APIError {
+  status: number;
+  message: string;
+  details?: any;
+}
+
+const handleAPIError = (error: APIError) => {
+  // 错误处理逻辑
+};
+```
+
+### 请求重试策略
+```typescript
+const retryConfig = {
+  retries: 3,
+  backoff: {
+    initial: 1000,
+    multiplier: 2,
+    maxRetries: 3
+  }
+};
+```
 
 ## Reference
 
@@ -198,20 +306,6 @@ interface ProcessLog {
 }
 ```
 
-## Project Structure
-
-```text
-src/
-├── components/        # UI组件
-│   ├── agents/       # AI智能体相关组件
-│   ├── files/        # 文件处理相关组件
-│   └── common/       # 通用组件
-├── hooks/            # 自定义Hook
-├── services/         # API服务
-├── stores/           # 状态管理
-└── utils/            # 工具函数
-```
-
 ## Change Log
 
 | Change | Story ID | Description |
@@ -241,14 +335,16 @@ src/
 ### 核心功能
 
 1. **AI智能体管理**
-   - 支持创建、编辑、删除AI智能体
+   - 支持创建、编辑、删除AI智能体配置
    - 每个智能体可配置独立的提示词
+   - 智能体配置本地存储
    - 智能体列表展示和选择
 
 2. **文件上传与管理**
    - 支持多选上传文件
    - 支持md、txt、html等多种文本格式
    - 文件列表展示和状态管理
+   - 文件在前端进行处理，不上传服务器
 
 3. **文件处理**
    - 支持单个文件处理
@@ -260,38 +356,58 @@ src/
      - 单个文件处理进度
      - 处理速度和剩余时间估算
      - 处理文件数量统计
+   - 所有处理在浏览器端完成
 
 4. **文件下载**
-   - 支持单个文件下载
-   - 支持批量文件下载
+   - 支持单个文件下载到本地
+   - 支持批量文件打包下载
    - 下载进度展示
+   - 使用浏览器原生下载功能
 
 5. **系统配置**
    - OpenAI API配置（baseURL和API Key）
    - 系统参数设置
+   - 配置信息本地存储
 
 ### 非功能需求
 
 1. **性能要求**
-   - 文件上传响应时间 < 2秒
-   - 异步处理机制，支持后台处理
-   - 最大并发处理文件数：5个
-   - UI操作响应时间 < 1秒
+   - 文件处理在浏览器端进行
+   - 支持大文件分片处理
+   - 最大并发API请求数：5个
+   - UI响应时间 < 100ms
    - 实时处理状态反馈
    - 支持处理任务的暂停/继续
-   - 文件大小：暂不限制
+   - 文件大小限制：
+     - 默认限制：2MB
+     - 支持自定义配置（通过系统设置）
+     - 最大不超过50MB（考虑浏览器内存限制）
 
 2. **可用性要求**
-   - 直观的用户界面
+   - 响应式界面设计
+   - 离线功能支持
    - 清晰的操作反馈
    - 完善的错误提示
    - 处理进度实时展示
-   - 支持处理历史记录查看
+   - 支持处理历史记录查看（本地存储）
 
 3. **安全要求**
-   - API Key安全存储
-   - 文件访问权限控制
-   - 本地文件安全处理
+   - API Key本地加密存储
+   - 文件本地处理，不上传服务器
+   - 敏感信息不进行网络传输
+   - 使用HTTPS调用OpenAI API
+
+4. **浏览器兼容性**
+   - 支持主流现代浏览器
+   - Chrome/Firefox/Safari最新版
+   - Edge最新版
+   - 不支持IE浏览器
+
+5. **本地存储管理**
+   - 使用LocalStorage存储配置
+   - 使用IndexedDB存储处理历史
+   - 定期清理过期数据
+   - 提供清除本地数据功能
 
 ## 技术栈
 
@@ -378,175 +494,106 @@ graph TD
    - 监控并发处理状态
    - 记录性能瓶颈信息
 
-## 文件处理流程
+### 5. 本地存储设计
 
-### 1. 初始化阶段
-```mermaid
-graph TD
-    A[初始化处理器] --> B[配置OpenAI客户端]
-    B --> C[创建必要目录]
-    C --> D[设置并发限制]
-    D --> E[配置日志记录]
+```typescript
+// LocalStorage结构
+interface LocalConfig {
+  apiKey: string;
+  baseUrl: string;
+  agents: Agent[];
+  processConfig: ProcessConfig;
+  fileConfig: {
+    maxFileSize: number;      // 最大文件大小（字节）
+    defaultFileSize: number;  // 默认为 2MB
+    allowedTypes: string[];   // 允许的文件类型
+  };
+}
+
+// IndexedDB结构
+interface ProcessHistory {
+  id: string;
+  timestamp: number;
+  fileInfo: FileStatus;
+  result: string;
+  processingTime: number;
+  tokenUsage: {
+    prompt: number;
+    completion: number;
+    total: number;
+  };
+}
 ```
 
-### 2. 文件处理流程
-```mermaid
-sequenceDiagram
-    participant U as 用户界面
-    participant P as 处理器
-    participant Q as 处理队列
-    participant A as AI处理器
-    participant F as 文件系统
+### 6. 错误处理机制
 
-    U->>P: 上传文件
-    P->>F: 保存文件
-    P->>Q: 添加到处理队列
-    loop 并发处理(最多5个)
-        Q->>A: 获取文件内容
-        A->>A: 构建提示词
-        A->>A: 调用OpenAI API
-        A->>F: 保存处理结果
-        A->>U: 更新处理状态
-    end
+```typescript
+// 错误类型定义
+type ErrorType = 
+  | 'FILE_TOO_LARGE'
+  | 'INVALID_FORMAT'
+  | 'API_ERROR'
+  | 'TIMEOUT'
+  | 'RATE_LIMIT'
+  | 'UNKNOWN';
+
+// 文件大小相关错误处理
+interface FileSizeError {
+  code: 'FILE_TOO_LARGE';
+  filename: string;
+  fileSize: number;
+  maxAllowedSize: number;
+  message: string;
+}
+
+// 错误处理策略
+const errorHandlers = {
+  FILE_TOO_LARGE: (error: FileSizeError) => {
+    // 文件过大处理逻辑
+    return {
+      type: 'error',
+      message: `文件 ${error.filename} (${formatFileSize(error.fileSize)}) 超过大小限制 ${formatFileSize(error.maxAllowedSize)}`,
+      suggestion: '请减小文件大小或在系统设置中调整限制'
+    };
+  },
+  API_ERROR: async (error) => {
+    // API错误重试逻辑
+  },
+  RATE_LIMIT: async () => {
+    // 限流处理逻辑
+  }
+};
+
+// 文件大小格式化工具
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
 ```
 
-### 3. 处理步骤详解
+### 系统设置界面
 
-1. **文件上传与验证**
-   - 支持的文件格式：`.txt`, `.md`, `.doc`, `.docx`, `.rtf`, `.html`, `.htm`
-   - 文件编码：UTF-8
-   - 文件大小验证
+```typescript
+interface SystemSettings {
+  // 文件处理设置
+  fileProcessing: {
+    maxFileSize: number;        // 最大文件大小配置
+    defaultFileSize: number;    // 默认文件大小限制（2MB）
+    warningSizeThreshold: number; // 警告阈值（默认1.5MB）
+    allowedFileTypes: string[]; // 允许的文件类型
+  };
+  // ... other settings ...
+}
 
-2. **队列管理**
-   - 使用信号量控制并发（最大5个）
-   - 任务优先级排序
-   - 处理进度跟踪
-
-3. **AI处理**
-   - 系统提示词：`"你是一个专业的文本优化助手。"`
-   - 模型参数：
-     ```json
-     {
-       "temperature": 0.7,
-       "max_tokens": 4096
-     }
-     ```
-   - API请求间隔：1秒（避免限流）
-
-4. **结果保存**
-   - 输出格式：统一使用`.md`
-   - 文件命名：`{原文件名}_processed_{时间戳}.md`
-   - 异步写入操作
-
-### 4. 状态管理
-
-| 状态 | 描述 | 处理方式 |
-|------|------|----------|
-| 待处理 | 文件已上传，等待处理 | 进入处理队列 |
-| 处理中 | 正在进行AI处理 | 显示进度条 |
-| 已完成 | 处理完成并保存 | 可下载结果 |
-| 失败 | 处理过程出错 | 显示错误信息，支持重试 | 
-
-### 5. 进度展示详细设计
-
-#### 5.1 进度展示组件
-
-```mermaid
-graph TD
-    A[进度展示组件] --> B[总体进度]
-    A --> C[单文件进度]
-    A --> D[状态统计]
-    A --> E[处理详情]
-
-    B --> B1[进度条]
-    B --> B2[百分比]
-    B --> B3[剩余时间]
-
-    C --> C1[当前文件名]
-    C --> C2[处理阶段]
-    C --> C3[Token计数]
-
-    D --> D1[总文件数]
-    D --> D2[已完成数]
-    D --> D3[失败数]
-    D --> D4[等待数]
-
-    E --> E1[处理日志]
-    E --> E2[错误信息]
-    E --> E3[性能指标]
+// 文件大小配置组件
+interface FileSizeConfig {
+  currentLimit: number;
+  defaultLimit: number;
+  maxLimit: number;
+  onLimitChange: (newLimit: number) => void;
+  showWarningThreshold: boolean;
+  warningThreshold: number;
+}
 ```
 
-#### 5.2 进度展示内容
-
-1. **总体进度展示**
-   - 总进度条（0-100%）
-   - 已处理文件数/总文件数
-   - 预估剩余时间
-   - 当前处理速度（文件/分钟）
-
-2. **单文件进度展示**
-   - 文件名和大小
-   - 处理阶段标识：
-     ```typescript
-     enum ProcessingStage {
-       QUEUED = '排队中',
-       READING = '读取文件',
-       PROCESSING = 'AI处理中',
-       SAVING = '保存结果',
-       COMPLETED = '已完成',
-       FAILED = '处理失败'
-     }
-     ```
-   - Token使用统计：
-     - 已使用token数
-     - 预估剩余token数
-     - Token使用费用估算
-
-3. **状态统计面板**
-   | 状态 | 显示内容 | 更新频率 |
-   |------|----------|----------|
-   | 队列统计 | 等待处理文件数 | 实时 |
-   | 处理统计 | 正在处理文件数 | 实时 |
-   | 完成统计 | 已完成文件数/总数 | 实时 |
-   | 性能统计 | 平均处理时间/文件 | 定期更新 |
-
-4. **实时日志展示**
-   ```typescript
-   interface ProcessLog {
-     timestamp: string;     // 时间戳
-     fileId: string;       // 文件ID
-     stage: ProcessingStage; // 处理阶段
-     message: string;      // 日志信息
-     type: 'info' | 'warning' | 'error'; // 日志类型
-     details?: any;        // 详细信息
-   }
-   ```
-
-#### 5.3 交互设计
-
-1. **进度条交互**
-   - 支持暂停/继续处理
-   - 支持取消处理
-   - 鼠标悬停显示详细信息
-
-2. **文件列表交互**
-   - 支持按状态筛选
-   - 支持按处理时间排序
-   - 支持展开/折叠详细信息
-
-3. **日志面板交互**
-   - 支持日志级别筛选
-   - 支持搜索特定文件
-   - 支持导出处理日志
-
-#### 5.4 更新机制
-
-1. **实时更新**
-   - 使用WebSocket保持实时连接
-   - 定期（每秒）更新进度信息
-   - 即时推送错误和完成通知
-
-2. **性能优化**
-   - 分批次更新UI，避免性能问题
-   - 大量文件时采用虚拟滚动
-   - 日志采用增量更新机制
