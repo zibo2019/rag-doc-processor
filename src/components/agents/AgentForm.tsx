@@ -2,11 +2,12 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AgentConfig, agentConfigSchema } from '../../types/agent';
+import { ExtendedAgentConfig, extendedAgentConfigSchema } from '../../types/agentExtend';
 import { useAgentStore } from '../../stores/agentStore';
 
 interface AgentFormProps {
-  initialData?: AgentConfig;
-  onSubmit?: (data: AgentConfig) => void;
+  initialData?: ExtendedAgentConfig;
+  onSubmit?: (data: ExtendedAgentConfig) => void;
   onCancel?: () => void;
 }
 
@@ -37,11 +38,12 @@ export const AgentForm: React.FC<AgentFormProps> = ({
     handleSubmit,
     formState: { errors, isSubmitting },
     reset,
-  } = useForm<AgentConfig>({
-    resolver: zodResolver(agentConfigSchema),
+  } = useForm<ExtendedAgentConfig>({
+    resolver: zodResolver(extendedAgentConfigSchema),
     defaultValues: processedInitialData || {
       name: '',
       prompt: '',
+      model: 'gpt-3.5-turbo',
       rules: {
         maxTokens: 2000,
         temperature: 0.7,
@@ -50,16 +52,16 @@ export const AgentForm: React.FC<AgentFormProps> = ({
     },
   });
 
-  const onSubmitForm = async (data: AgentConfig) => {
+  const onSubmitForm = async (data: ExtendedAgentConfig) => {
     try {
       // 确保日期字段为Date对象
       const formData = { ...data };
       
       // 提交到store
       if (initialData?.id) {
-        updateAgent(initialData.id, formData);
+        updateAgent(initialData.id, formData as AgentConfig);
       } else {
-        addAgent(formData);
+        addAgent(formData as AgentConfig);
       }
       onSubmit?.(formData);
       reset();
@@ -86,6 +88,21 @@ export const AgentForm: React.FC<AgentFormProps> = ({
           />
           {errors.name && (
             <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            模型 *
+          </label>
+          <input
+            type="text"
+            {...register('model')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+            placeholder="例如: gpt-3.5-turbo, gpt-4"
+          />
+          {errors.model && (
+            <p className="mt-1 text-sm text-red-600">{errors.model.message}</p>
           )}
         </div>
 

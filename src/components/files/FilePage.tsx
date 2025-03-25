@@ -92,11 +92,7 @@ const FilePage: React.FC = () => {
       <div className="mb-6">
         <AgentPanel 
           onAgentSelected={(agentId) => {
-            const agent = agents.find(a => a.id === agentId);
-            if (agent) {
-              notify.success(`已选择智能体"${agent.name}"，可以处理文件了`);
-            }
-            // 更新全局状态中的selectedAgentId
+            // 只更新全局状态中的selectedAgentId，不显示通知
             setSelectedAgentId(agentId);
           }}
         />

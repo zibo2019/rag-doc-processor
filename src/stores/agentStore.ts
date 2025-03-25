@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { AgentConfig, AgentListItem, AgentStatus } from '../types/agent';
+import { ExtendedAgentConfig, ExtendedAgentListItem } from '../types/agentExtend';
 import { notify } from '../utils/notification';
 
 interface AgentStore {
@@ -94,13 +95,18 @@ export const useAgentStore = create<AgentStore>()(
               return;
             }
 
+            // 处理扩展的智能体配置，确保保留model字段
+            const extendedAgent = agent as ExtendedAgentConfig;
+            
             // 生成唯一ID
-            const newAgent: AgentListItem = {
+            const newAgent: ExtendedAgentListItem = {
               ...agent,
               id: crypto.randomUUID(),
               status: AgentStatus.IDLE,
               createdAt: new Date(),
               updatedAt: new Date(),
+              // 保留model字段
+              model: extendedAgent.model
             };
 
             set((state) => ({
@@ -126,6 +132,9 @@ export const useAgentStore = create<AgentStore>()(
               return;
             }
 
+            // 处理扩展的智能体配置，确保保留model字段
+            const extendedAgent = agent as Partial<ExtendedAgentConfig>;
+
             set((state) => {
               const index = state.agents.findIndex((a) => a.id === id);
               if (index === -1) {
@@ -138,6 +147,10 @@ export const useAgentStore = create<AgentStore>()(
               updatedAgents[index] = {
                 ...updatedAgents[index],
                 ...agent,
+                // 保留model字段
+                model: extendedAgent.model !== undefined 
+                  ? extendedAgent.model 
+                  : (updatedAgents[index] as ExtendedAgentListItem).model,
                 updatedAt: new Date(),
               };
 
@@ -147,6 +160,10 @@ export const useAgentStore = create<AgentStore>()(
                 updatedCurrentAgent = {
                   ...state.currentAgent,
                   ...agent,
+                  // 保留model字段
+                  model: extendedAgent.model !== undefined 
+                    ? extendedAgent.model 
+                    : (state.currentAgent as ExtendedAgentConfig).model,
                   updatedAt: new Date(),
                 };
               }

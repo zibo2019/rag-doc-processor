@@ -45,7 +45,7 @@ const AgentPage: React.FC = () => {
               onClick={handleCancel}
             />
 
-            <div className="inline-block transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6 sm:align-middle">
+            <div className="inline-block transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-[60%] sm:p-6 sm:align-middle">
               <div>
                 <h3 className="text-lg font-medium leading-6 text-gray-900">
                   {currentAgent ? '编辑智能体' : '创建智能体'}

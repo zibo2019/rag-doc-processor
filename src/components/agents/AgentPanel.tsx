@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useAgentStore } from '../../stores/agentStore';
 import { AgentSelector } from './AgentSelector';
 import { AgentConfig } from '../../types/agent';
+import { ExtendedAgentConfig, ExtendedAgentListItem } from '../../types/agentExtend';
 
 interface AgentPanelProps {
   className?: string;
@@ -35,15 +36,17 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
     // 找到选中的智能体实例
     const selectedAgent = agents.find(agent => agent.id === agentId);
     if (selectedAgent) {
-      // 将AgentListItem转换为AgentConfig
-      // 创建一个基本的AgentConfig结构，填充必要的字段
-      const agentConfig: AgentConfig = {
+      // 将AgentListItem转换为ExtendedAgentConfig
+      // 创建一个基本的ExtendedAgentConfig结构，填充必要的字段
+      const agentConfig: ExtendedAgentConfig = {
         id: selectedAgent.id,
         name: selectedAgent.name,
         prompt: selectedAgent.prompt || '', // 确保有默认值
         description: selectedAgent.description,
         createdAt: selectedAgent.createdAt,
         updatedAt: selectedAgent.updatedAt,
+        // 添加模型字段，如果存在则使用，否则使用默认值
+        model: (selectedAgent as ExtendedAgentListItem).model || 'gpt-3.5-turbo',
         // 添加缺失的必要字段
         rules: {
           maxTokens: 2048,
@@ -52,7 +55,7 @@ export const AgentPanel: React.FC<AgentPanelProps> = ({
         isActive: true
       };
       
-      setCurrentAgent(agentConfig);
+      setCurrentAgent(agentConfig as AgentConfig);
       
       // 如果提供了回调函数，则调用它
       if (onAgentSelected) {
