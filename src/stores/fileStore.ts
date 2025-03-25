@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { FileInfo, FileValidationConfig } from '../types/file';
 import { readFileContent } from '../utils/file';
-import { showError, showSuccess, showLoading, updateToast } from '../utils/notification';
+import { notify } from '../utils/notification';
 
 interface FileStore {
   // 状态
@@ -58,14 +58,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set((state) => ({
         files: state.files.filter((f) => f.id !== id)
       }));
-      showSuccess(`已删除文件 "${file.name}"`);
+      notify.success(`已删除文件 "${file.name}"`);
     }
   },
 
   // 清空文件列表
   clearFiles: () => {
     set({ files: [] });
-    showSuccess('已清空文件列表');
+    notify.success('已清空文件列表');
   },
 
   // 设置处理状态
@@ -79,7 +79,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const fileInfo = files.find((f) => f.id === id);
     
     if (!fileInfo) {
-      showError('文件不存在');
+      notify.error('文件不存在');
       return;
     }
     
@@ -108,7 +108,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     }));
 
     // 显示加载提示
-    const toastId = showLoading(`正在处理文件 "${fileInfo.name}"...`);
+    const toastId = notify.loading(`正在处理文件 "${fileInfo.name}"...`);
 
     try {
       // 更新状态为处理中
@@ -132,7 +132,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
 
       // 更新提示
-      updateToast(toastId, `文件 "${fileInfo.name}" 处理完成`, 'success');
+      notify.update(toastId, `文件 "${fileInfo.name}" 处理完成`, 'success');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
       updateFile(id, {
@@ -140,7 +140,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         error: errorMessage
       });
       // 更新提示
-      updateToast(toastId, `文件 "${fileInfo.name}" ${errorMessage}`, 'error');
+      notify.update(toastId, `文件 "${fileInfo.name}" ${errorMessage}`, 'error');
     } finally {
       // 更新处理计数
       set((state) => ({
@@ -158,7 +158,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         status: 'failed',
         error: '用户取消'
       });
-      showSuccess(`已取消处理文件 "${file.name}"`);
+      notify.success(`已取消处理文件 "${file.name}"`);
     }
   }
 })); 

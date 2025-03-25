@@ -155,14 +155,14 @@ const FileListItem: React.FC<{
 );
 
 export const FileList: React.FC<FileListProps> = ({
-  originalFiles = [],  // 添加默认空数组
-  processedFiles = [], // 添加默认空数组
+  originalFiles = [],
+  processedFiles = [],
   onRemove,
   onCancel,
   onRetry,
   selectedFiles = [],
   onSelectFile,
-  className
+  className,
 }) => {
   // 预览状态
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);

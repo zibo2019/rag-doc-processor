@@ -1,0 +1,214 @@
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { AgentConfig, AgentListItem, AgentStatus } from '../types/agent';
+import { notify } from '../utils/notification';
+
+interface AgentStore {
+  agents: AgentListItem[];
+  currentAgent: AgentConfig | null;
+  selectedAgentId: string | null;
+  isLoading: boolean;
+  error: string | null;
+
+  // 获取智能体列表
+  fetchAgents: () => Promise<void>;
+  setAgents: (agents: AgentListItem[]) => void;
+  addAgent: (agent: AgentConfig) => void;
+  updateAgent: (id: string, agent: Partial<AgentConfig>) => void;
+  deleteAgent: (id: string) => void;
+  setCurrentAgent: (agent: AgentConfig | null) => void;
+  setSelectedAgentId: (id: string | null) => void;
+  setLoading: (isLoading: boolean) => void;
+  setError: (error: string | null) => void;
+}
+
+// 从localStorage加载数据
+const loadFromStorage = () => {
+  try {
+    const storedData = localStorage.getItem('agent-store');
+    if (storedData) {
+      const { state } = JSON.parse(storedData);
+      
+      // 转换日期字符串为Date对象
+      const agents = state.agents || [];
+      agents.forEach((agent: any) => {
+        if (agent.createdAt) agent.createdAt = new Date(agent.createdAt);
+        if (agent.updatedAt) agent.updatedAt = new Date(agent.updatedAt);
+        if (agent.lastUsed) agent.lastUsed = new Date(agent.lastUsed);
+      });
+      
+      return {
+        agents,
+        selectedAgentId: state.selectedAgentId || null,
+        currentAgent: null // 初始化时不设置currentAgent，防止自动打开编辑模态框
+      };
+    }
+  } catch (error) {
+    console.error('从localStorage加载数据失败:', error);
+  }
+  return {
+    agents: [],
+    selectedAgentId: null,
+    currentAgent: null
+  };
+};
+
+export const useAgentStore = create<AgentStore>()(
+  persist(
+    (set) => {
+      // 加载初始状态
+      const initialState = loadFromStorage();
+
+      return {
+        ...initialState,
+        isLoading: false,
+        error: null,
+
+        fetchAgents: async () => {
+          set({ isLoading: true, error: null });
+          try {
+            const { agents, selectedAgentId, currentAgent } = loadFromStorage();
+            set({ 
+              agents, 
+              selectedAgentId,
+              currentAgent,
+              isLoading: false 
+            });
+          } catch (error) {
+            set({ error: (error as Error).message, isLoading: false });
+            notify.error('获取智能体列表失败：' + (error as Error).message);
+          }
+        },
+
+        setAgents: (agents) => set({ agents }),
+        
+        addAgent: (agent) => {
+          try {
+            // 数据验证
+            if (!agent.name?.trim()) {
+              notify.error('智能体名称不能为空');
+              return;
+            }
+            if (!agent.prompt?.trim()) {
+              notify.error('提示词不能为空');
+              return;
+            }
+
+            // 生成唯一ID
+            const newAgent: AgentListItem = {
+              ...agent,
+              id: crypto.randomUUID(),
+              status: AgentStatus.IDLE,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+
+            set((state) => ({
+              agents: [...state.agents, newAgent],
+              error: null,
+            }));
+            notify.success('智能体创建成功');
+          } catch (error) {
+            notify.error('创建智能体失败：' + (error as Error).message);
+            set({ error: (error as Error).message });
+          }
+        },
+
+        updateAgent: (id, agent) => {
+          try {
+            // 数据验证
+            if (agent.name !== undefined && !agent.name.trim()) {
+              notify.error('智能体名称不能为空');
+              return;
+            }
+            if (agent.prompt !== undefined && !agent.prompt.trim()) {
+              notify.error('提示词不能为空');
+              return;
+            }
+
+            set((state) => {
+              const index = state.agents.findIndex((a) => a.id === id);
+              if (index === -1) {
+                notify.error('未找到要更新的智能体');
+                return state;
+              }
+
+              // 更新智能体
+              const updatedAgents = [...state.agents];
+              updatedAgents[index] = {
+                ...updatedAgents[index],
+                ...agent,
+                updatedAt: new Date(),
+              };
+
+              // 如果更新的是当前编辑的智能体，同步更新
+              let updatedCurrentAgent = state.currentAgent;
+              if (state.currentAgent && state.currentAgent.id === id) {
+                updatedCurrentAgent = {
+                  ...state.currentAgent,
+                  ...agent,
+                  updatedAt: new Date(),
+                };
+              }
+
+              return {
+                ...state,
+                agents: updatedAgents,
+                currentAgent: updatedCurrentAgent,
+                error: null,
+              };
+            });
+            notify.success('智能体更新成功');
+          } catch (error) {
+            notify.error('更新智能体失败：' + (error as Error).message);
+            set({ error: (error as Error).message });
+          }
+        },
+
+        deleteAgent: (id) => {
+          try {
+            set((state) => {
+              // 如果删除的是当前选中的智能体，清除选中状态
+              if (state.selectedAgentId === id) {
+                return {
+                  agents: state.agents.filter((agent) => agent.id !== id),
+                  selectedAgentId: null,
+                  currentAgent: null,
+                  error: null,
+                };
+              }
+              
+              return {
+                agents: state.agents.filter((agent) => agent.id !== id),
+                error: null,
+              };
+            });
+            notify.success('智能体删除成功');
+          } catch (error) {
+            notify.error('删除智能体失败：' + (error as Error).message);
+            set({ error: (error as Error).message });
+          }
+        },
+
+        setCurrentAgent: (agent) => {
+          set({ 
+            currentAgent: agent,
+            selectedAgentId: agent?.id || null
+          });
+        },
+
+        setSelectedAgentId: (id) => set({ selectedAgentId: id }),
+        setLoading: (isLoading) => set({ isLoading }),
+        setError: (error) => set({ error }),
+      };
+    },
+    {
+      name: 'agent-store',
+      partialize: (state) => ({ 
+        agents: state.agents,
+        selectedAgentId: state.selectedAgentId,
+        currentAgent: state.currentAgent
+      }),
+    }
+  )
+); 
