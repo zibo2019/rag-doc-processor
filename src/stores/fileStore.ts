@@ -74,14 +74,13 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set((state) => ({
         files: state.files.filter((f) => f.id !== id)
       }));
-      notify.success(`已删除文件 "${file.name}"`);
     }
   },
 
   // 清空文件列表
   clearFiles: () => {
     set({ files: [] });
-    notify.success('已清空文件列表');
+    notify.success('已清空');
   },
 
   // 设置处理状态
@@ -119,7 +118,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
     
     // 检查是否超过最大并发数
     if (get().currentProcessingCount >= maxConcurrentProcessing) {
-      // 更新文件状态为等待中
+      // 更新文件状态为等待中，但不显示提示
       updateFile(id, {
         status: 'pending',
         error: '等待处理...'
@@ -174,7 +173,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         status: 'completed'
       });
 
-      // 更新提示
+      // 更新提示，只在单独处理时显示完成提示
       if (showNotification && toastId) {
         notify.update(toastId, `处理完成`, 'success');
       }
@@ -184,7 +183,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         status: 'failed',
         error: errorMessage
       });
-      // 更新提示
+      // 更新提示，错误情况一定要提示
       if (showNotification && toastId) {
         notify.update(toastId, `处理失败`, 'error');
       }
@@ -205,7 +204,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         status: 'failed',
         error: '已取消'
       });
-      notify.success(`已取消处理`);
+      // 取消处理不显示提示
     }
   },
 

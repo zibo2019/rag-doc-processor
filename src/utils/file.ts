@@ -51,14 +51,14 @@ export const validateFile = (
   if (config.allowedTypes.length > 0 && !validateFileType(file, config.allowedTypes)) {
     return {
       isValid: false,
-      error: `不支持的文件类型。支持的类型：${config.allowedTypes.join(', ')}`
+      error: `格式不支持`
     };
   }
 
   if (!validateFileSize(file, config.maxFileSize)) {
     return {
       isValid: false,
-      error: `文件大小超过限制。最大允许：${Math.round(config.maxFileSize / 1024)}KB`
+      error: `超出大小限制`
     };
   }
 

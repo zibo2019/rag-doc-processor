@@ -72,12 +72,11 @@ const FilePage: React.FC = () => {
     // 关闭模态框
     setShowProcessingModal(false);
     
-    // 显示处理结果通知
+    // 显示处理结果通知，简化内容
     const { success, failed } = processingStatus;
-    if (failed === 0) {
-      notify.success(`处理完成，成功${success}个`);
-    } else {
-      notify.warning(`处理完成：${success}成功，${failed}失败`);
+    if (failed > 0) {
+      // 只在有失败的情况下显示提示
+      notify.warning(`完成：${success}/${failed+success}`);
     }
   };
 
@@ -197,7 +196,7 @@ const FilePage: React.FC = () => {
   // 处理清空文件列表或处理结果
   const handleClearFiles = (isProcessed: boolean) => {
     // 获取当前状态的所有文件
-    const { files, updateFile } = useFileStore.getState();
+    const { files, updateFile, clearFiles } = useFileStore.getState();
     
     if (isProcessed) {
       // 如果是处理后文件列表，只清除处理结果，不删除文件
@@ -211,11 +210,10 @@ const FilePage: React.FC = () => {
         }
       });
       
-      notify.success('已清空结果');
+      notify.success('已清空');
     } else {
-      // 清除所有文件
-      files.forEach(file => removeFile(file.id));
-      notify.success('已清空文件');
+      // 清除所有文件，使用clearFiles函数，会在其中显示提示
+      clearFiles();
     }
     
     // 清空选择

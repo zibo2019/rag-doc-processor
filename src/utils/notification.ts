@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 // 统一的通知配置
 const defaultConfig = {
   duration: 2000,
-  position: 'top-right' as const,
+  position: 'top-center' as const,
   className: 'bg-white dark:bg-gray-800 shadow-lg rounded-lg border border-gray-200 dark:border-gray-700',
   style: {
     padding: '12px',

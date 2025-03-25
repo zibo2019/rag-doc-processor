@@ -36,7 +36,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       
       // 检查文件数量
       if (fileArray.length > 50) {
-        showError('一次最多只能上传50个文件');
+        showError('最多50个文件');
         return;
       }
 
@@ -69,7 +69,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             status: 'invalid',
             error: validation.error
           });
-          showError(`文件 "${fileInfo.name}" ${validation.error}`);
+          showError(`${validation.error}`);
           continue;
         }
 
@@ -79,7 +79,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             const splitFiles = await splitFile(fileInfo, validationConfig);
             
             if (splitFiles.length > 1) {
-              showSuccess(`文件已分割为${splitFiles.length}部分`);
+              // 只在分割文件时显示提示
+              showSuccess(`已分割${splitFiles.length}份`);
               // 添加分割后的文件
               processedFiles.push(...splitFiles);
             } else {
@@ -89,7 +90,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           } catch (error) {
             // 分割失败，使用原始文件
             processedFiles.push(fileInfo);
-            showError(`分割失败：${error instanceof Error ? error.message : '未知错误'}`);
+            // 只在出错时显示错误提示
+            showError(`分割失败`);
           }
         } else {
           // 不需要分割
@@ -105,7 +107,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       // 添加所有文件
       onFilesSelected(processedFiles);
-      showSuccess(`已添加${processedFiles.length}个文件`);
+      
+      // 只在没有分割文件时显示添加成功提示
+      const hasSplitFiles = processedFiles.some(file => file.isPartOfSplit);
+      if (!hasSplitFiles) {
+        showSuccess(`已添加${processedFiles.length}份`);
+      }
     },
     [onFilesSelected, onFileValidated, validationConfig]
   );
@@ -124,7 +131,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       e.stopPropagation();
 
       if (disabled) {
-        showError('上传功能已禁用');
+        showError('已禁用');
         return;
       }
 
@@ -144,7 +151,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       e.stopPropagation();
 
       if (disabled) {
-        showError('上传功能已禁用');
+        showError('已禁用');
         return;
       }
 
