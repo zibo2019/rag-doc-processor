@@ -12,29 +12,29 @@ export const Header: React.FC = () => {
   };
 
   const linkClass = (path: string) => `
-    relative px-4 py-2 text-sm font-medium transition-all duration-200
+    relative px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out
+    group flex items-center space-x-2 rounded-lg
     ${isActive(path)
-      ? 'text-indigo-600'
-      : 'text-gray-600 hover:text-indigo-600'
+      ? 'text-indigo-600 bg-indigo-50'
+      : 'text-gray-600 hover:text-indigo-600 hover:bg-indigo-50/50'
     }
-    ${isActive(path) && 'after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-indigo-600 after:rounded-full'}
   `;
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo 区域 */}
             <div className="flex-shrink-0">
               <Link 
                 to="/" 
-                className="group flex items-center space-x-2"
+                className="group flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
               >
                 {/* Logo 图标 */}
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-600 bg-opacity-10 group-hover:bg-opacity-20 transition-all duration-200">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-lg shadow-indigo-200 group-hover:shadow-indigo-300 transition-all duration-300">
                   <svg
-                    className="h-6 w-6 text-indigo-600"
+                    className="h-6 w-6 text-white"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -49,20 +49,21 @@ export const Header: React.FC = () => {
                 </div>
                 {/* Logo 文字 */}
                 <div className="flex flex-col">
-                  <span className="text-xl font-bold text-gray-900">AI文档批量处理器</span>
+                  <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">AI文档批量处理器</span>
+                  <span className="text-xs text-gray-500">智能文档处理解决方案</span>
                 </div>
               </Link>
             </div>
 
             {/* 导航菜单 */}
-            <nav className="flex items-center space-x-1">
+            <nav className="flex items-center space-x-2 bg-gray-50/50 rounded-lg p-1">
               <Link
                 to="/"
                 className={linkClass('/')}
               >
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <svg
-                    className="h-4 w-4"
+                    className="h-4 w-4 transition-transform group-hover:scale-110 duration-200"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -81,9 +82,9 @@ export const Header: React.FC = () => {
                 to="/agents"
                 className={linkClass('/agents')}
               >
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <svg
-                    className="h-4 w-4"
+                    className="h-4 w-4 transition-transform group-hover:scale-110 duration-200"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -103,14 +104,16 @@ export const Header: React.FC = () => {
             {/* 用户区域 */}
             <div className="flex items-center space-x-4">
               {/* API状态 */}
-              <ApiStatus />
+              <div className="p-1.5 bg-gray-50 rounded-lg">
+                <ApiStatus />
+              </div>
               
               <button 
-                className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors duration-200"
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-lg transition-all duration-200"
                 onClick={() => setIsSettingsOpen(true)}
               >
                 <svg
-                  className="h-4 w-4"
+                  className="h-4 w-4 transition-transform hover:rotate-45 duration-300"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
