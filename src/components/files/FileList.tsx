@@ -81,11 +81,17 @@ const FileListItem: React.FC<{
   onPreview: (file: FileInfo) => void;
   isSelected?: boolean;
   onSelect?: (id: string, isProcessed: boolean) => void;
-  isProcessedView?: boolean; // 新增参数，标识是否为处理后视图
-  onProcessSingle?: (id: string) => void; // 单个文件处理函数
-  onDownloadSingle?: (id: string) => void; // 单个文件下载函数
+  isProcessedView?: boolean;
+  onProcessSingle?: (id: string) => void;
+  onDownloadSingle?: (id: string) => void;
 }> = ({ file, onRemove, onCancel, onRetry, onPreview, isSelected, onSelect, isProcessedView, onProcessSingle, onDownloadSingle }) => (
-  <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200">
+  <div className={clsx(
+    'group relative flex items-center p-4 bg-white rounded-lg border transition-all duration-200',
+    {
+      'border-blue-200 bg-blue-50': isSelected,
+      'border-gray-200 hover:border-gray-300': !isSelected
+    }
+  )}>
     {/* 选择框 */}
     {onSelect && (
       <div className="mr-4">
@@ -98,74 +104,93 @@ const FileListItem: React.FC<{
       </div>
     )}
 
+    {/* 文件图标 */}
+    <div className="mr-4">
+      <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+      </svg>
+    </div>
+
     {/* 文件信息 */}
-    <div 
-      className="flex-1 min-w-0 mr-4 cursor-pointer"
-      onClick={() => onPreview(file)}
-    >
-      <div className="flex items-center">
+    <div className="flex-1 min-w-0 cursor-pointer" onClick={() => onPreview(file)}>
+      <div className="flex items-center space-x-2">
         <h3 className="text-sm font-medium text-gray-900 truncate">
           {file.name}
         </h3>
-        <span
-          className={clsx(
-            'ml-2 px-2 py-0.5 text-xs rounded-full',
+        <div className="flex items-center space-x-2">
+          <span className={clsx(
+            'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full',
             getStatusStyle(file.status)
-          )}
-        >
-          {getStatusText(file.status)}
-        </span>
-        {isProcessedView && (
-          <span className="ml-2 px-2 py-0.5 text-xs bg-indigo-100 text-indigo-800 rounded-full">
-            处理后
+          )}>
+            {getStatusText(file.status)}
           </span>
-        )}
+          {isProcessedView && (
+            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 rounded-full">
+              处理后
+            </span>
+          )}
+        </div>
       </div>
-      <div className="mt-1 flex items-center text-sm text-gray-500">
-        <span>{formatFileSize(file.size)}</span>
+      <div className="mt-1 flex items-center space-x-4 text-sm">
+        <span className="text-gray-500">{formatFileSize(file.size)}</span>
         {file.error && (
-          <span className="ml-2 text-red-600 truncate">
-            错误：{file.error}
+          <span className="text-red-600 truncate flex items-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {file.error}
           </span>
         )}
       </div>
     </div>
 
     {/* 操作按钮 */}
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center space-x-2 ml-4">
       {file.status === 'uploading' && (
         <button
           onClick={() => onCancel(file.id)}
-          className="px-2 py-1 text-sm text-red-600 hover:text-red-800"
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-red-700 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
         >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
           取消
         </button>
       )}
+      
       {file.status === 'failed' && (
         <button
           onClick={() => onRetry(file.id)}
-          className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
           重试
         </button>
       )}
       
-      {/* 原始文件处理按钮 */}
       {!isProcessedView && onProcessSingle && file.status !== 'uploading' && (
         <button
           onClick={() => onProcessSingle(file.id)}
-          className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           处理
         </button>
       )}
       
-      {/* 处理后文件下载按钮 */}
       {isProcessedView && onDownloadSingle && file.status !== 'uploading' && (
         <button
           onClick={() => onDownloadSingle(file.id)}
-          className="px-2 py-1 text-sm text-green-600 hover:text-green-800"
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-green-700 hover:text-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
         >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
           下载
         </button>
       )}
@@ -173,15 +198,23 @@ const FileListItem: React.FC<{
       {file.status !== 'uploading' && (
         <button
           onClick={() => onRemove(file.id)}
-          className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
         >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
           删除
         </button>
       )}
+      
       <button
         onClick={() => onPreview(file)}
-        className="px-2 py-1 text-sm text-blue-600 hover:text-blue-800"
+        className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
       >
+        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+        </svg>
         预览
       </button>
     </div>

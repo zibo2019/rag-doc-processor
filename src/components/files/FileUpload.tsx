@@ -160,18 +160,15 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   );
 
   return (
-    <div className="space-y-4">
+    <div className={clsx('w-full', className)}>
       <div
         className={clsx(
-          'relative flex flex-col items-center justify-center w-full h-64 p-6',
-          'border-2 border-dashed rounded-lg cursor-pointer',
-          'transition-colors duration-200 ease-in-out',
+          'flex flex-col items-center justify-center p-8 border-2 rounded-lg transition-all duration-200',
           {
-            'border-blue-400 bg-blue-50': isDragging,
-            'border-blue-200 hover:border-blue-400 hover:bg-blue-50': !isDragging && !disabled,
+            'border-blue-400 bg-blue-50/70 shadow-lg shadow-blue-100': isDragging,
+            'border-gray-200 hover:border-blue-300 hover:bg-gray-50/70 hover:shadow-md': !isDragging && !disabled,
             'border-gray-200 bg-gray-50 cursor-not-allowed': disabled
-          },
-          className
+          }
         )}
         onClick={handleClick}
         onDragEnter={handleDrag}
@@ -186,12 +183,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           className="hidden"
           onChange={(e) => handleFileSelect(e.target.files)}
           disabled={disabled}
-          accept={validationConfig.allowedTypes.length > 0 ? validationConfig.allowedTypes.map(type => `.${type}`).join(',') : '*'}
         />
 
-        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+        <div className={clsx(
+          'w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 transform',
+          {
+            'bg-blue-100 scale-110': isDragging,
+            'bg-gray-100 hover:scale-105': !isDragging && !disabled,
+            'bg-gray-50': disabled
+          }
+        )}>
           <svg
-            className={clsx('w-12 h-12 mb-4', {
+            className={clsx('w-8 h-8 transition-colors duration-300', {
               'text-blue-500': isDragging,
               'text-blue-400': !isDragging && !disabled,
               'text-gray-300': disabled
@@ -207,64 +210,81 @@ export const FileUpload: React.FC<FileUploadProps> = ({
               d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
             />
           </svg>
-          <p className={clsx('mb-3 text-base', {
-            'text-blue-600': isDragging,
-            'text-blue-500': !isDragging && !disabled,
-            'text-gray-400': disabled
+        </div>
+
+        <p className={clsx('text-lg mt-4 mb-6', {
+          'text-blue-600': isDragging,
+          'text-gray-700': !isDragging && !disabled,
+          'text-gray-400': disabled
+        })}>
+          <span className="font-medium">点击上传</span> 或拖拽文件到此处
+        </p>
+        
+        <div className="flex flex-wrap justify-center gap-4">
+          <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
+            'bg-blue-100/80 text-blue-700': isDragging,
+            'bg-gray-100/80 text-gray-600 hover:bg-gray-200/80': !isDragging && !disabled,
+            'bg-gray-50 text-gray-400': disabled
           })}>
-            <span className="font-semibold">点击上传</span> 或拖拽文件到此处
-          </p>
-          <div className="space-y-1.5">
-            {validationConfig.allowedTypes.length > 0 ? (
-              <p className={clsx('text-sm', {
-                'text-blue-500': isDragging,
-                'text-blue-400': !isDragging && !disabled,
-                'text-gray-400': disabled
-              })}>
-                支持的文件类型: {validationConfig.allowedTypes.join(', ')}
-              </p>
-            ) : (
-              <p className={clsx('text-sm', {
-                'text-blue-500': isDragging,
-                'text-blue-400': !isDragging && !disabled,
-                'text-gray-400': disabled
-              })}>
-                支持所有文件类型
-              </p>
-            )}
-            <p className={clsx('text-sm', {
-              'text-blue-500': isDragging,
-              'text-blue-400': !isDragging && !disabled,
-              'text-gray-400': disabled
-            })}>
-              最大文件大小: {validationConfig.maxFileSize / 1024}KB
-            </p>
-            <p className={clsx('text-sm', {
-              'text-blue-500': isDragging,
-              'text-blue-400': !isDragging && !disabled,
-              'text-gray-400': disabled
-            })}>
-              单次最多上传50个文件
-            </p>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className="text-sm whitespace-nowrap">文件类型不限</span>
+          </div>
+          
+          <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
+            'bg-blue-100/80 text-blue-700': isDragging,
+            'bg-gray-100/80 text-gray-600 hover:bg-gray-200/80': !isDragging && !disabled,
+            'bg-gray-50 text-gray-400': disabled
+          })}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+            </svg>
+            <span className="text-sm whitespace-nowrap">最大 {validationConfig.maxFileSize / 1024}KB</span>
+          </div>
+          
+          <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
+            'bg-blue-100/80 text-blue-700': isDragging,
+            'bg-gray-100/80 text-gray-600 hover:bg-gray-200/80': !isDragging && !disabled,
+            'bg-gray-50 text-gray-400': disabled
+          })}>
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
+            <span className="text-sm whitespace-nowrap">最多50个文件</span>
           </div>
         </div>
       </div>
-      
-      {/* 文件分割选项 */}
-      <div className="flex items-center px-2">
-        <input
-          type="checkbox"
-          id="autoSplitFiles"
-          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-          checked={validationConfig.autoSplitFiles}
-          onChange={handleAutoSplitChange}
-          disabled={disabled}
-        />
-        <label htmlFor="autoSplitFiles" className="ml-2 text-sm font-medium text-gray-700">
-          自动分割大文件（重叠率：{validationConfig.splitOverlapPercent || 20}%）
-        </label>
-        <div className="ml-auto text-xs text-gray-500">
-          分块大小：{validationConfig.maxChunkSize ? `约${validationConfig.maxChunkSize}个token（约${validationConfig.maxChunkSize * 4}字符）` : '约2000个token'}
+
+      <div className="flex items-center justify-between mt-4 px-5 py-4 rounded-lg">
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="autoSplitFiles"
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-offset-0"
+              checked={validationConfig.autoSplitFiles}
+              onChange={handleAutoSplitChange}
+              disabled={disabled}
+            />
+            <label htmlFor="autoSplitFiles" className="ml-2 text-sm font-medium text-gray-700">
+              自动分割大文件
+            </label>
+          </div>
+          <span className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded-full">
+            重叠率：{validationConfig.splitOverlapPercent || 20}%
+          </span>
+        </div>
+        
+        <div className="flex items-center text-sm text-gray-600">
+          <svg className="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+          <span>
+            分块大小：{validationConfig.maxChunkSize ? 
+              `约${validationConfig.maxChunkSize}个token（约${validationConfig.maxChunkSize * 4}字符）` : 
+              '约2000个token'}
+          </span>
         </div>
       </div>
     </div>

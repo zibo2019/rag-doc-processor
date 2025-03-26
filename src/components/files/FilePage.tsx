@@ -371,7 +371,7 @@ const FilePage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4">
+    <div className="min-h-screen bg-gray-50">
       {/* 处理进度模态框 */}
       <ProcessingModal 
         isOpen={showProcessingModal}
@@ -380,55 +380,47 @@ const FilePage: React.FC = () => {
         onComplete={handleProcessingComplete}
       />
 
-      {/* 标题 */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-blue-800">
-          AI文档批量处理器
-        </h1>
-        <p className="mt-2 text-blue-600">
-          支持上传各种格式的文件进行处理，文件大小限制为200KB
-        </p>
-      </div>
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      {/* 文件上传组件 */}
-      <div className="mb-6">
-        <FileUpload
-          onFilesSelected={(fileInfos) => {
-            // 直接添加FileInfo数组
-            addFiles(fileInfos);
-          }}
-          onFileValidated={updateFile}
-          validationConfig={validationConfig}
-          className="bg-white shadow-lg"
-        />
-      </div>
+        {/* 主要内容区域 */}
+        <div className="space-y-8">
+          {/* 文件上传组件 */}
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+            <FileUpload
+              onFilesSelected={(fileInfos) => {
+                addFiles(fileInfos);
+              }}
+              onFileValidated={updateFile}
+              validationConfig={validationConfig}
+              className="bg-white"
+            />
+          </div>
 
-      {/* 智能体选择面板 */}
-      <div className="mb-6">
-        <AgentPanel 
-          onAgentSelected={() => {
-            // 智能体选择后无需额外操作，由AgentPanel组件内部更新state
-          }}
-        />
-      </div>
+          {/* 智能体选择面板 */}
+          <AgentPanel 
+              onAgentSelected={() => {
+                // 智能体选择后无需额外操作
+              }}
+            />
 
-      {/* 文件列表 */}
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-8">
-        <FileList
-          originalFiles={files} // 显示所有原始文件
-          processedFiles={files.filter(file => file.content !== undefined && file.content !== null && file.content !== '')}
-          onRemove={removeFile}
-          onCancel={cancelProcessing}
-          onRetry={(id) => processFile(id)}
-          originalSelectedFiles={originalSelectedFiles}
-          processedSelectedFiles={processedSelectedFiles}
-          onSelectFile={handleFileSelect}
-          onProcessFiles={handleProcessFiles}
-          onDownloadFiles={handleDownloadFiles}
-          onClearFiles={handleClearFiles}
-          onProcessSingleFile={handleProcessSingleFile}
-          className="mt-4"
-        />
+          {/* 文件列表 */}
+          <div className="bg-white rounded-lg shadow-sm p-6">
+            <FileList
+              originalFiles={files}
+              processedFiles={files.filter(f => f.content)}
+              onRemove={removeFile}
+              onCancel={cancelProcessing}
+              onRetry={handleProcessSingleFile}
+              originalSelectedFiles={originalSelectedFiles}
+              processedSelectedFiles={processedSelectedFiles}
+              onSelectFile={handleFileSelect}
+              onProcessFiles={handleProcessFiles}
+              onDownloadFiles={handleDownloadFiles}
+              onClearFiles={handleClearFiles}
+              onProcessSingleFile={handleProcessSingleFile}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );
