@@ -59,7 +59,7 @@ export const AgentList: React.FC<AgentListProps> = ({ onShowForm }) => {
 
   return (
     <div>
-      <ul className="p-4 space-y-3">
+      <ul className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {agents.map((agent) => {
           // 将agent视为扩展类型以访问模型字段
           const extendedAgent = agent as ExtendedAgentListItem;
@@ -121,7 +121,6 @@ export const AgentList: React.FC<AgentListProps> = ({ onShowForm }) => {
                 
                 {/* 提示词预览 */}
                 <div className="mt-2 border-t border-gray-100 pt-2">
-                  <div className="text-xs text-gray-500 font-medium">提示词：</div>
                   <pre className="mt-1 text-xs text-gray-700 bg-gray-50 p-2 rounded whitespace-pre-wrap max-h-24 overflow-y-auto">
                     {truncatePrompt(agent.prompt)}
                   </pre>

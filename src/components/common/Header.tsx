@@ -50,7 +50,6 @@ export const Header: React.FC = () => {
                 {/* Logo 文字 */}
                 <div className="flex flex-col">
                   <span className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">AI文档批量处理器</span>
-                  <span className="text-xs text-gray-500">智能文档处理解决方案</span>
                 </div>
               </Link>
             </div>
