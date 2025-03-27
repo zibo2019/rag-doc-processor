@@ -5,6 +5,7 @@ import { MainLayout } from '../components/layouts/MainLayout';
 // 使用 React.lazy 懒加载页面组件
 const FilePage = React.lazy(() => import('../components/files/FilePage'));
 const AgentPage = React.lazy(() => import('../components/agents/AgentPage'));
+const SettingsPage = React.lazy(() => import('../pages/Settings'));
 
 // 加载状态组件
 const LoadingFallback = () => (
@@ -32,6 +33,14 @@ export const AppRouter: React.FC = () => {
             element={
               <Suspense fallback={<LoadingFallback />}>
                 <AgentPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="settings"
+            element={
+              <Suspense fallback={<LoadingFallback />}>
+                <SettingsPage />
               </Suspense>
             }
           />
