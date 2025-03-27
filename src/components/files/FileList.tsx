@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { FileInfo } from '../../types/file';
+import { FileInfo as BaseFileInfo } from '../../types/file';
 import clsx from 'clsx';
 import { FilePreview } from './FilePreview';
+
+// 扩展基础的 FileInfo 类型，重写 status 字段
+interface FileInfo extends Omit<BaseFileInfo, 'status'> {
+  status: 'pending' | 'completed';
+}
 
 interface FileListProps {
   originalFiles: FileInfo[];  // 原始文件列表
   processedFiles: FileInfo[]; // 处理后的文件列表
   onRemove: (id: string) => void;
-  onCancel: (id: string) => void;
-  onRetry: (id: string) => void;
-  originalSelectedFiles: string[]; // 新增：存储原始文件选择状态
-  processedSelectedFiles: string[]; // 新增：存储处理后文件选择状态 
+  originalSelectedFiles: string[]; // 存储原始文件选择状态
+  processedSelectedFiles: string[]; // 存储处理后文件选择状态 
   onSelectFile?: (id: string, isProcessed: boolean) => void; // 标识选择的是哪类文件
   onProcessFiles?: () => void; // 处理选中文件的回调
   onDownloadFiles?: (ids: string[]) => void; // 下载选中文件的回调
@@ -37,18 +40,7 @@ const getStatusStyle = (status: FileInfo['status']) => {
   switch (status) {
     case 'completed':
       return 'bg-green-100 text-green-800';
-    case 'failed':
-      return 'bg-red-100 text-red-800';
-    case 'uploading':
-      return 'bg-blue-100 text-blue-800';
     case 'pending':
-      return 'bg-gray-100 text-gray-800';
-    case 'validating':
-      return 'bg-yellow-100 text-yellow-800';
-    case 'valid':
-      return 'bg-green-100 text-green-800';
-    case 'invalid':
-      return 'bg-red-100 text-red-800';
     default:
       return 'bg-gray-100 text-gray-800';
   }
@@ -59,13 +51,8 @@ const getStatusStyle = (status: FileInfo['status']) => {
  */
 const getStatusText = (status: FileInfo['status']): string => {
   const statusMap: Record<FileInfo['status'], string> = {
-    pending: '等待处理',
-    validating: '验证中',
-    valid: '已上传',
-    invalid: '验证失败',
-    uploading: '处理中',
-    completed: '已完成',
-    failed: '失败'
+    pending: '待处理',
+    completed: '已完成'
   };
   return statusMap[status];
 };
@@ -76,8 +63,6 @@ const getStatusText = (status: FileInfo['status']): string => {
 const FileListItem = ({ 
   file, 
   onRemove, 
-  onCancel, 
-  onRetry, 
   onPreview, 
   isSelected, 
   onSelect, 
@@ -87,8 +72,6 @@ const FileListItem = ({
 }: {
   file: FileInfo;
   onRemove: (id: string) => void;
-  onCancel: (id: string) => void;
-  onRetry: (id: string) => void;
   onPreview: (file: FileInfo) => void;
   isSelected?: boolean;
   onSelect?: (id: string, isProcessed: boolean) => void;
@@ -164,19 +147,15 @@ const FileListItem = ({
           <h3 className="text-sm font-medium text-gray-900 truncate">
             {file.name}
           </h3>
-          <div className="flex items-center space-x-2">
+          {/* 只在原始文件视图中显示状态 */}
+          {!isProcessedView && (
             <span className={clsx(
               'inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full',
               getStatusStyle(file.status)
             )}>
               {getStatusText(file.status)}
             </span>
-            {isProcessedView && (
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-indigo-100 text-indigo-800 rounded-full">
-                处理后
-              </span>
-            )}
-          </div>
+          )}
         </div>
         <div className="mt-1 flex items-center space-x-4 text-sm">
           <div className="flex items-center space-x-2">
@@ -203,31 +182,7 @@ const FileListItem = ({
 
       {/* 操作按钮 */}
       <div className="flex items-center space-x-2 ml-4">
-        {file.status === 'uploading' && (
-          <button
-            onClick={() => onCancel(file.id)}
-            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-red-700 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            取消
-          </button>
-        )}
-        
-        {file.status === 'failed' && (
-          <button
-            onClick={() => onRetry(file.id)}
-            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            重试
-          </button>
-        )}
-        
-        {!isProcessedView && onProcessSingle && file.status !== 'uploading' && (
+        {!isProcessedView && onProcessSingle && file.status === 'pending' && (
           <button
             onClick={() => onProcessSingle(file.id)}
             className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-blue-700 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -240,7 +195,7 @@ const FileListItem = ({
           </button>
         )}
         
-        {isProcessedView && onDownloadSingle && file.status !== 'uploading' && (
+        {isProcessedView && onDownloadSingle && (
           <button
             onClick={() => onDownloadSingle(file.id)}
             className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-green-700 hover:text-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -252,17 +207,15 @@ const FileListItem = ({
           </button>
         )}
         
-        {file.status !== 'uploading' && (
-          <button
-            onClick={() => onRemove(file.id)}
-            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-          >
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            删除
-          </button>
-        )}
+        <button
+          onClick={() => onRemove(file.id)}
+          className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:text-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+        >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          删除
+        </button>
         
         <button
           onClick={() => onPreview(file)}
@@ -353,8 +306,6 @@ export const FileList: React.FC<FileListProps> = ({
   originalFiles = [],
   processedFiles = [],
   onRemove,
-  onCancel,
-  onRetry,
   originalSelectedFiles = [],
   processedSelectedFiles = [],
   onSelectFile,
@@ -388,7 +339,6 @@ export const FileList: React.FC<FileListProps> = ({
   // 原始文件全选/取消全选
   const handleOriginalSelectAll = () => {
     const allSelected = safeOriginalFiles.every(file => originalSelectedFiles.includes(file.id));
-    console.log(`原始文件全选状态: ${allSelected}, 原始文件数: ${safeOriginalFiles.length}, 已选: ${originalSelectedFiles.length}`);
     
     if (allSelected) {
       // 取消全选 - 从选中列表中移除所有原始文件
@@ -409,7 +359,6 @@ export const FileList: React.FC<FileListProps> = ({
   // 处理后文件全选/取消全选
   const handleProcessedSelectAll = () => {
     const allSelected = safeProcessedFiles.every(file => processedSelectedFiles.includes(file.id));
-    console.log(`处理后文件全选状态: ${allSelected}, 处理后文件数: ${safeProcessedFiles.length}, 已选: ${processedSelectedFiles.length}`);
     
     if (allSelected) {
       // 取消全选 - 从选中列表中移除所有处理后文件
@@ -480,8 +429,6 @@ export const FileList: React.FC<FileListProps> = ({
                   key={file.id}
                   file={file}
                   onRemove={onRemove}
-                  onCancel={onCancel}
-                  onRetry={onRetry}
                   onPreview={setPreviewFile}
                   isSelected={originalSelectedFiles.includes(file.id)}
                   onSelect={handleOriginalFileSelect}
@@ -525,8 +472,6 @@ export const FileList: React.FC<FileListProps> = ({
                   key={file.id}
                   file={file}
                   onRemove={onRemove}
-                  onCancel={onCancel}
-                  onRetry={onRetry}
                   onPreview={setPreviewFile}
                   isSelected={processedSelectedFiles.includes(file.id)}
                   onSelect={handleProcessedFileSelect}
