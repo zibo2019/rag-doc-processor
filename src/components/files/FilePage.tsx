@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileUpload } from './FileUpload';
 import { FileList } from './FileList';
 import { AgentPanel } from '../agents/AgentPanel';
@@ -30,6 +30,7 @@ const FilePage: React.FC = () => {
     removeFile,
     processFile,
     cancelProcessing,
+    initializeProcessingQueue
   } = useFileStore();
 
   const { currentAgent, selectedAgentId } = useAgentStore();
@@ -47,6 +48,26 @@ const FilePage: React.FC = () => {
     failed: 0,
     completed: false
   });
+
+  // 组件挂载时初始化处理队列
+  useEffect(() => {
+    // 初始化处理队列，恢复之前中断的处理
+    initializeProcessingQueue();
+    
+    // 每5秒自动检查队列状态，确保不会有任务卡住
+    const intervalId = setInterval(() => {
+      const fileStore = useFileStore.getState();
+      if (fileStore.processQueue.pendingFiles.length > 0 && 
+          fileStore.currentProcessingCount < fileStore.maxConcurrentProcessing) {
+        console.log('自动检查并补充处理队列...');
+        fileStore.checkAndFillQueue();
+      }
+    }, 5000);
+    
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, []);
 
   // 处理文件选择
   const handleFileSelect = (id: string, isProcessed: boolean) => {
@@ -169,46 +190,93 @@ const FilePage: React.FC = () => {
     setShowProcessingModal(true);
 
     try {
-      // 创建处理任务数组
-      const processingTasks = filesToProcess.map(async (fileId) => {
-        try {
-          // 获取文件信息
-          const file = files.find(f => f.id === fileId);
-          
-          // 处理文件但不显示通知
-          await processFileWithoutNotification(fileId);
-          
-          // 更新处理状态
-          setProcessingStatus(prev => ({
-            ...prev,
-            processed: prev.processed + 1,
-            success: prev.success + 1
-          }));
-          
-          return { success: true, fileId, fileName: file?.name } as ProcessingTaskResult;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : '处理失败';
-          console.error(`处理文件 ${fileId} 失败:`, errorMessage);
-          
-          // 更新文件状态和错误信息
-          updateFile(fileId, {
-            status: 'failed',
-            error: errorMessage
+      // 获取FileStore中的相关函数
+      const fileStore = useFileStore.getState();
+      
+      // 创建处理任务监听器
+      const createWatcher = (fileId: string) => {
+        return new Promise<ProcessingTaskResult>((resolve) => {
+          // 文件状态监听器
+          const watchFileStatus = setInterval(() => {
+            const currentFiles = useFileStore.getState().files;
+            const currentFile = currentFiles.find(f => f.id === fileId);
+            
+            if (currentFile && (currentFile.status === 'completed' || currentFile.status === 'failed')) {
+              clearInterval(watchFileStatus);
+              
+              if (currentFile.status === 'completed') {
+                // 更新处理状态
+                setProcessingStatus(prev => ({
+                  ...prev,
+                  processed: prev.processed + 1,
+                  success: prev.success + 1
+                }));
+                
+                resolve({ 
+                  success: true, 
+                  fileId, 
+                  fileName: currentFile.name 
+                });
+              } else {
+                // 更新处理状态
+                setProcessingStatus(prev => ({
+                  ...prev,
+                  processed: prev.processed + 1,
+                  failed: prev.failed + 1
+                }));
+                
+                resolve({ 
+                  success: false, 
+                  fileId, 
+                  fileName: currentFile.name,
+                  error: currentFile.error || '处理失败'
+                });
+              }
+            }
+          }, 300);
+        });
+      };
+      
+      // 为每个文件创建观察者
+      const watchers = filesToProcess.map(fileId => createWatcher(fileId));
+      
+      // 开始处理所有文件
+      // 首先添加第一批文件到处理队列（最大并行数量）
+      const { maxConcurrentProcessing } = fileStore;
+      const firstBatch = filesToProcess.slice(0, maxConcurrentProcessing);
+      const remainingFiles = filesToProcess.slice(maxConcurrentProcessing);
+      
+      // 处理第一批文件
+      for (const fileId of firstBatch) {
+        fileStore.processFile(fileId, false).catch(error => {
+          console.error(`启动文件处理失败: ${fileId}`, error);
+        });
+      }
+      
+      // 将剩余文件添加到处理队列
+      if (remainingFiles.length > 0) {
+        // 将每个文件的状态标记为待处理
+        for (const fileId of remainingFiles) {
+          fileStore.updateFile(fileId, {
+            status: 'pending',
+            error: '等待处理...'
           });
           
-          // 更新处理状态
-          setProcessingStatus(prev => ({
-            ...prev,
-            processed: prev.processed + 1,
-            failed: prev.failed + 1
-          }));
-          
-          return { success: false, fileId, error: errorMessage } as ProcessingTaskResult;
+          // 将文件添加到处理队列
+          fileStore.processQueue.pendingFiles.push(fileId);
         }
-      });
+        
+        // 设置队列为处理中状态
+        fileStore.processQueue.isProcessing = true;
+        
+        // 主动触发队列检查，确保队列被正确处理
+        setTimeout(() => {
+          fileStore.checkAndFillQueue();
+        }, 100);
+      }
       
-      // 并行处理所有文件
-      await Promise.allSettled(processingTasks);
+      // 等待所有文件处理完成
+      await Promise.all(watchers);
       
       // 设置处理完成状态
       setProcessingStatus(prev => ({

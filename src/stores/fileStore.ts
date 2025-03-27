@@ -6,6 +6,12 @@ import { useAgentStore } from './agentStore';
 import { processFileWithOpenAI } from '../api/openai/fileProcessor';
 import { checkAPIConfigured } from '../api/openai/client';
 
+// 添加处理队列类型
+interface ProcessQueue {
+  pendingFiles: string[];  // 等待处理的文件ID队列
+  isProcessing: boolean;   // 队列是否正在处理
+}
+
 interface FileStore {
   // 状态
   files: FileInfo[];                    // 文件列表
@@ -13,6 +19,7 @@ interface FileStore {
   currentProcessingCount: number;      // 当前正在处理的文件数量
   validationConfig: FileValidationConfig; // 验证配置
   maxConcurrentProcessing: number;     // 最大并行处理数量
+  processQueue: ProcessQueue;          // 处理队列
 
   // 动作
   addFiles: (files: FileInfo[]) => void;
@@ -23,6 +30,11 @@ interface FileStore {
   processFile: (id: string, showNotification?: boolean) => Promise<void>;
   cancelProcessing: (id: string) => void;
   updateValidationConfig: (config: Partial<FileValidationConfig>) => void;
+  // 新增方法
+  processNextInQueue: () => Promise<void>;
+  checkAndFillQueue: () => void;
+  // 初始化方法
+  initializeProcessingQueue: () => void;
 }
 
 // 默认验证配置
@@ -41,6 +53,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
   isProcessing: false,
   currentProcessingCount: 0,
   maxConcurrentProcessing: 5, // 设置最大并行处理数量为5
+  processQueue: {
+    pendingFiles: [],
+    isProcessing: false
+  },
   validationConfig: {
     maxFileSize: 200 * 1024,        // 200KB
     allowedTypes: [],               // 不限制文件类型
@@ -88,9 +104,66 @@ export const useFileStore = create<FileStore>((set, get) => ({
     set({ isProcessing });
   },
 
+  // 检查并填充处理队列
+  checkAndFillQueue: () => {
+    const { processQueue, currentProcessingCount, maxConcurrentProcessing } = get();
+    
+    // 如果有待处理的任务并且处理槽位有空闲，则立即启动处理
+    if (processQueue.pendingFiles.length > 0 && currentProcessingCount < maxConcurrentProcessing) {
+      // 计算可以填充的任务数量
+      const availableSlots = maxConcurrentProcessing - currentProcessingCount;
+      const tasksToProcess = Math.min(availableSlots, processQueue.pendingFiles.length);
+      
+      console.log(`检测到空闲处理槽位: ${availableSlots}, 启动${tasksToProcess}个任务`);
+      
+      // 立即启动处理下一个任务
+      get().processNextInQueue();
+    }
+  },
+
+  // 处理队列中的下一个文件
+  processNextInQueue: async () => {
+    const { processQueue, maxConcurrentProcessing, currentProcessingCount } = get();
+    
+    // 检查是否有待处理的文件，并且没有超过最大并发数
+    if (processQueue.pendingFiles.length > 0 && currentProcessingCount < maxConcurrentProcessing) {
+      // 获取队列中的下一个文件
+      const nextFileId = processQueue.pendingFiles[0];
+      
+      // 从队列中移除该文件
+      set((state) => ({
+        processQueue: {
+          ...state.processQueue,
+          pendingFiles: state.processQueue.pendingFiles.slice(1)
+        }
+      }));
+      
+      // 处理该文件（不显示通知）
+      try {
+        await get().processFile(nextFileId, false);
+      } catch (error) {
+        console.error(`处理队列中的文件 ${nextFileId} 失败:`, error);
+      }
+      
+      // 继续检查是否可以处理更多文件
+      // 注意：这里不再递归调用，而是在完成处理后再检查队列状态
+      setTimeout(() => {
+        get().checkAndFillQueue();
+      }, 100);
+    } else if (processQueue.pendingFiles.length === 0) {
+      // 队列已清空，设置处理状态为false
+      set((state) => ({
+        processQueue: {
+          ...state.processQueue,
+          isProcessing: false
+        }
+      }));
+    }
+  },
+
   // 处理文件
   processFile: async (id, showNotification = true) => {
-    const { files, updateFile, maxConcurrentProcessing } = get();
+    const { files, updateFile, maxConcurrentProcessing, processQueue } = get();
     const fileInfo = files.find((f) => f.id === id);
     
     if (!fileInfo) {
@@ -118,22 +191,21 @@ export const useFileStore = create<FileStore>((set, get) => ({
     
     // 检查是否超过最大并发数
     if (get().currentProcessingCount >= maxConcurrentProcessing) {
-      // 更新文件状态为等待中，但不显示提示
+      // 更新文件状态为等待中
       updateFile(id, {
         status: 'pending',
         error: '等待处理...'
       });
 
-      // 创建一个Promise来等待处理槽位
-      return new Promise<void>((resolve) => {
-        const checkAndProcess = setInterval(() => {
-          if (get().currentProcessingCount < maxConcurrentProcessing) {
-            clearInterval(checkAndProcess);
-            // 递归调用processFile
-            resolve(get().processFile(id, showNotification));
-          }
-        }, 500);
-      });
+      // 添加到处理队列
+      set((state) => ({
+        processQueue: {
+          pendingFiles: [...state.processQueue.pendingFiles, id],
+          isProcessing: true
+        }
+      }));
+
+      return;
     }
 
     // 更新处理计数
@@ -196,6 +268,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set((state) => ({
         currentProcessingCount: state.currentProcessingCount - 1
       }));
+      
+      // 立即检查是否有等待中的文件需要处理
+      setTimeout(() => {
+        get().checkAndFillQueue();
+      }, 50);
     }
   },
 
@@ -204,6 +281,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
     const { updateFile, files } = get();
     const file = files.find(f => f.id === id);
     if (file) {
+      // 如果文件在处理队列中，则从队列中移除
+      set((state) => ({
+        processQueue: {
+          ...state.processQueue,
+          pendingFiles: state.processQueue.pendingFiles.filter(fileId => fileId !== id)
+        }
+      }));
+      
       updateFile(id, {
         status: 'failed',
         error: '已取消'
@@ -217,5 +302,46 @@ export const useFileStore = create<FileStore>((set, get) => ({
     set((state) => ({
       validationConfig: { ...state.validationConfig, ...config }
     }));
+  },
+
+  // 初始化处理队列
+  initializeProcessingQueue: () => {
+    const { processQueue, files } = get();
+    
+    // 重置处理中的文件状态
+    files.forEach(file => {
+      if (file.status === 'uploading') {
+        // 将正在处理的文件重置为等待状态
+        get().updateFile(file.id, {
+          status: 'pending',
+          error: '处理被中断，等待重新处理...'
+        });
+        
+        // 添加到处理队列
+        if (!processQueue.pendingFiles.includes(file.id)) {
+          set((state) => ({
+            processQueue: {
+              ...state.processQueue,
+              pendingFiles: [...state.processQueue.pendingFiles, file.id]
+            }
+          }));
+        }
+      }
+    });
+    
+    // 如果队列中有待处理的文件，设置队列为处理中状态
+    if (processQueue.pendingFiles.length > 0) {
+      set((state) => ({
+        processQueue: {
+          ...state.processQueue,
+          isProcessing: true
+        }
+      }));
+      
+      // 检查并填充处理队列
+      setTimeout(() => {
+        get().checkAndFillQueue();
+      }, 200);
+    }
   }
 })); 

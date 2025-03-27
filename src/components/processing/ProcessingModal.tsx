@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dialog, DialogHeader, DialogTitle } from '../ui/dialog';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { useFileStore } from '@/stores/fileStore';
+import { FileInfo } from '@/types/file';
 
 export interface ProcessingStatus {
   total: number;
@@ -27,6 +28,22 @@ const Spinner = () => (
     </span>
   </div>
 );
+
+// 文件状态图标组件
+const FileStatusIcon: React.FC<{ status: string }> = ({ status }) => {
+  switch (status) {
+    case 'uploading':
+      return <div className="h-3 w-3 bg-blue-500 rounded-full animate-pulse"></div>;
+    case 'completed':
+      return <div className="h-3 w-3 bg-green-500 rounded-full"></div>;
+    case 'failed':
+      return <div className="h-3 w-3 bg-red-500 rounded-full"></div>;
+    case 'pending':
+      return <div className="h-3 w-3 bg-gray-300 rounded-full"></div>;
+    default:
+      return <div className="h-3 w-3 bg-gray-400 rounded-full"></div>;
+  }
+};
 
 // 波浪效果动画的关键帧
 const waveAnimation = `
@@ -55,7 +72,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg',
+        'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg md:max-w-xl',
         className
       )}
       {...props}
@@ -75,7 +92,55 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
 }) => {
   const { total, processed, success, failed, completed } = processingStatus;
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
-  const { currentProcessingCount, maxConcurrentProcessing } = useFileStore();
+  const { files, currentProcessingCount, maxConcurrentProcessing, processQueue } = useFileStore();
+  
+  // 获取正在处理中的文件和队列中等待处理的文件
+  const [processingFiles, setProcessingFiles] = useState<FileInfo[]>([]);
+  const [queuedFiles, setQueuedFiles] = useState<FileInfo[]>([]);
+  
+  // 根据文件状态更新显示列表
+  useEffect(() => {
+    if (isOpen) {
+      // 获取正在处理中的文件
+      const currentlyProcessing = files.filter(file => file.status === 'uploading');
+      setProcessingFiles(currentlyProcessing);
+      
+      // 获取队列中等待处理的文件（根据状态和processQueue中的pendingFiles）
+      if (processQueue?.pendingFiles?.length > 0) {
+        const pendingFileIds = processQueue.pendingFiles;
+        const pendingFiles = files.filter(file => 
+          pendingFileIds.includes(file.id) || file.status === 'pending'
+        );
+        setQueuedFiles(pendingFiles);
+      } else {
+        setQueuedFiles(files.filter(file => file.status === 'pending'));
+      }
+    }
+  }, [isOpen, files, processQueue]);
+  
+  // 每秒更新文件状态
+  useEffect(() => {
+    if (isOpen && !completed) {
+      const interval = setInterval(() => {
+        // 获取正在处理中的文件
+        const currentlyProcessing = files.filter(file => file.status === 'uploading');
+        setProcessingFiles(currentlyProcessing);
+        
+        // 获取队列中等待处理的文件
+        if (processQueue?.pendingFiles?.length > 0) {
+          const pendingFileIds = processQueue.pendingFiles;
+          const pendingFiles = files.filter(file => 
+            pendingFileIds.includes(file.id) || file.status === 'pending'
+          );
+          setQueuedFiles(pendingFiles);
+        } else {
+          setQueuedFiles(files.filter(file => file.status === 'pending'));
+        }
+      }, 1000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, files, completed, processQueue]);
   
   return (
     <Dialog open={isOpen}>
@@ -142,6 +207,67 @@ export const ProcessingModal: React.FC<ProcessingModalProps> = ({
               <div className="text-gray-500">总数</div>
             </div>
           </div>
+          
+          {/* 正在处理文件列表 */}
+          {!completed && (
+            <div className="mt-4">
+              <div className="text-sm font-medium text-gray-700 mb-2 flex justify-between">
+                <span>处理中的文件 ({processingFiles.length})：</span>
+                {processingFiles.length >= maxConcurrentProcessing && (
+                  <span className="text-xs text-amber-500">已达最大并行数</span>
+                )}
+              </div>
+              <div className="max-h-24 overflow-y-auto bg-gray-50 rounded-md p-2">
+                {processingFiles.length > 0 ? (
+                  <div className="space-y-1">
+                    {processingFiles.map(file => (
+                      <div key={file.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-md bg-white">
+                        <div className="flex items-center space-x-2 truncate flex-grow">
+                          <FileStatusIcon status={file.status} />
+                          <span className="truncate">{file.name}</span>
+                        </div>
+                        <div className="flex items-center pl-2">
+                          <div className="h-1.5 w-12 bg-gray-200 rounded-full mr-1.5 overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full w-1/2 animate-pulse"></div>
+                          </div>
+                          <span className="text-blue-500 text-xs whitespace-nowrap">处理中</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500 text-center py-2">
+                    暂无文件正在处理
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* 等待队列文件列表 */}
+          {!completed && queuedFiles.length > 0 && (
+            <div className="mt-1">
+              <div className="text-sm font-medium text-gray-700 mb-2">
+                等待队列 ({queuedFiles.length})：
+              </div>
+              <div className="max-h-24 overflow-y-auto bg-gray-50 rounded-md p-2">
+                <div className="space-y-1">
+                  {queuedFiles.map((file, index) => (
+                    <div key={file.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-md bg-white">
+                      <div className="flex items-center space-x-2 truncate flex-grow">
+                        <div className="flex items-center justify-center min-w-5 h-5 bg-gray-100 rounded-full text-gray-500 text-xs font-medium mr-0.5">
+                          {index + 1}
+                        </div>
+                        <FileStatusIcon status={file.status} />
+                        <span className="truncate">{file.name}</span>
+                      </div>
+                      <span className="text-gray-400 text-xs whitespace-nowrap">等待中</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
           
           <div className="text-center text-sm mt-2">
             {completed ? (
