@@ -93,15 +93,25 @@ const AgentPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="container mx-auto px-4">
+    <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">智能体管理</h1>
         <button
           onClick={handleOpenModal}
           className="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
         >
           创建智能体
         </button>
+      </div>
+
+      {/* 智能体列表 */}
+      <div>
+        <AgentList 
+          onShowForm={() => {
+            // 用户点击编辑按钮，明确允许打开模态框
+            allowModalOpen.current = true;
+            setIsFormVisible(true);
+          }} 
+        />
       </div>
 
       {/* 表单弹窗 */}
@@ -152,17 +162,6 @@ const AgentPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* 智能体列表 */}
-      <div className="mt-8">
-        <AgentList 
-          onShowForm={() => {
-            // 用户点击编辑按钮，明确允许打开模态框
-            allowModalOpen.current = true;
-            setIsFormVisible(true);
-          }} 
-        />
-      </div>
     </div>
   );
 };
