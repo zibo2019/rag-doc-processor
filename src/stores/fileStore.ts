@@ -246,7 +246,9 @@ export const useFileStore = create<FileStore>((set, get) => ({
       updateFile(id, {
         content: processedContent,
         status: 'completed',
-        error: undefined // 清除错误信息
+        error: undefined, // 清除错误信息
+        // 重新计算处理后的文件大小（以字节为单位）
+        size: new Blob([processedContent]).size
       });
 
       // 更新提示，只在单独处理时显示完成提示

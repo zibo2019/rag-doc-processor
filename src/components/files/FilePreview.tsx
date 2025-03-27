@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { FileInfo } from '../../types/file';
 
 interface FilePreviewProps {
@@ -6,6 +6,17 @@ interface FilePreviewProps {
   onClose: () => void;
   isOpen: boolean;
 }
+
+/**
+ * 格式化文件大小
+ */
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+};
 
 /**
  * 文件预览组件
@@ -21,6 +32,24 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   const hasProcessedContent = !!file.content;
   const originalContent = file.rawContent || '';
   const processedContent = file.content || '';
+  
+  // 计算原始文件大小和处理后文件大小
+  const originalSize = file.rawContent ? new Blob([file.rawContent]).size : file.size;
+  const processedSize = file.content ? new Blob([file.content]).size : 0;
+  
+  // 计算文件大小变化百分比
+  const sizeDifference = useMemo(() => {
+    if (!hasProcessedContent || originalSize === 0) return null;
+    
+    const diff = processedSize - originalSize;
+    const percentChange = (diff / originalSize) * 100;
+    
+    return {
+      diff,
+      percentChange: Math.round(percentChange * 100) / 100, // 保留两位小数
+      isReduction: diff < 0
+    };
+  }, [hasProcessedContent, originalSize, processedSize]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -71,8 +100,11 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
         <div className="flex flex-1 overflow-hidden">
           {/* 左侧 - 原始内容 */}
           <div className="w-1/2 flex flex-col border-r">
-            <div className="p-2 bg-gray-100 border-b text-center">
+            <div className="p-2 bg-gray-100 border-b flex justify-between items-center">
               <h4 className="font-medium text-gray-700">原始内容</h4>
+              <div className="text-xs text-gray-600">
+                {formatFileSize(originalSize)}
+              </div>
             </div>
             <div className="p-4 overflow-auto flex-1">
               {originalContent ? (
@@ -89,8 +121,25 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
           
           {/* 右侧 - 处理后内容 */}
           <div className="w-1/2 flex flex-col">
-            <div className="p-2 bg-gray-100 border-b text-center">
+            <div className="p-2 bg-gray-100 border-b flex justify-between items-center">
               <h4 className="font-medium text-gray-700">处理后内容</h4>
+              {hasProcessedContent && (
+                <div className="flex items-center space-x-2">
+                  <div className="text-xs text-gray-600">
+                    {formatFileSize(processedSize)}
+                  </div>
+                  {sizeDifference && (
+                    <div className={`text-xs px-1.5 py-0.5 rounded ${
+                      sizeDifference.isReduction 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {sizeDifference.isReduction ? '↓' : '↑'} 
+                      {Math.abs(sizeDifference.percentChange)}%
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="p-4 overflow-auto flex-1">
               {hasProcessedContent ? (
