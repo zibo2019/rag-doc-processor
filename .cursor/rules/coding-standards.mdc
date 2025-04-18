@@ -1,0 +1,39 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# 编码规范指南
+
+## TypeScript 规范
+- 所有新文件必须使用 TypeScript（.ts/.tsx）
+- 明确定义类型，避免使用 `any`
+- 使用接口（interface）定义数据结构
+- 组件 props 必须定义类型
+
+## React 组件规范
+- 使用函数式组件和 Hooks
+- 组件文件使用 PascalCase 命名
+- 组件应该是纯函数，避免副作用
+- 复杂组件应该分解成更小的可复用组件
+
+## 样式规范
+- 使用 Tailwind CSS 进行样式设计
+- 遵循响应式设计原则
+- 自定义样式应在 `src/styles` 目录下管理
+
+## 文件组织
+- 相关的组件应该放在同一目录下
+- 共享组件放在 `src/components` 目录
+- 工具函数放在 `src/utils` 目录
+- 类型定义放在 `src/types` 目录
+
+## 注释规范
+- 为复杂的业务逻辑添加清晰的注释
+- 组件应该包含 JSDoc 注释说明其用途和参数
+- 关键算法和工具函数需要详细的注释说明
+
+## Git 提交规范
+- 提交信息应该清晰描述改动内容
+- 遵循约定式提交规范（Conventional Commits）
+- 每个提交应该只包含相关的改动
