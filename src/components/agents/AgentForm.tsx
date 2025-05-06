@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AgentConfig, agentConfigSchema } from '../../types/agent';
+import { AgentConfig } from '../../types/agent';
 import { ExtendedAgentConfig, extendedAgentConfigSchema } from '../../types/agentExtend';
 import { useAgentStore } from '../../stores/agentStore';
 
@@ -21,7 +21,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
   // 确保initialData中的日期字段是Date对象
   const processedInitialData = React.useMemo(() => {
     if (!initialData) return undefined;
-    
+
     const processed = { ...initialData };
     // 转换日期字符串为Date对象
     if (processed.createdAt && !(processed.createdAt instanceof Date)) {
@@ -56,7 +56,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
     try {
       // 确保日期字段为Date对象
       const formData = { ...data };
-      
+
       // 提交到store
       if (initialData?.id) {
         updateAgent(initialData.id, formData as AgentConfig);
@@ -113,7 +113,7 @@ export const AgentForm: React.FC<AgentFormProps> = ({
             {/* 处理规则 */}
             <div className="space-y-4 pt-2">
               <h3 className="text-lg font-medium border-b pb-2">规则配置</h3>
-              
+
               <div>
                 <label className="block text-sm font-medium text-gray-700">
                   最大Token数 *
@@ -196,4 +196,4 @@ export const AgentForm: React.FC<AgentFormProps> = ({
       </div>
     </form>
   );
-}; 
+};

@@ -53,17 +53,17 @@ const FilePage: React.FC = () => {
   useEffect(() => {
     // 初始化处理队列，恢复之前中断的处理
     initializeProcessingQueue();
-    
+
     // 每5秒自动检查队列状态，确保不会有任务卡住
     const intervalId = setInterval(() => {
       const fileStore = useFileStore.getState();
-      if (fileStore.processQueue.pendingFiles.length > 0 && 
+      if (fileStore.processQueue.pendingFiles.length > 0 &&
           fileStore.currentProcessingCount < fileStore.maxConcurrentProcessing) {
         console.log('自动检查并补充处理队列...');
         fileStore.checkAndFillQueue();
       }
     }, 5000);
-    
+
     return () => {
       clearInterval(intervalId);
     };
@@ -72,11 +72,11 @@ const FilePage: React.FC = () => {
   // 处理文件选择
   const handleFileSelect = (id: string, isProcessed: boolean) => {
     console.log(`选择文件: ${id}, 是处理后文件: ${isProcessed}`); // 添加调试输出
-    
+
     if (isProcessed) {
       // 处理处理后文件的选择
       setProcessedSelectedFiles(prev => {
-        const newSelection = prev.includes(id) 
+        const newSelection = prev.includes(id)
           ? prev.filter(fileId => fileId !== id)
           : [...prev, id];
         console.log(`处理后文件选择更新: `, newSelection); // 添加调试输出
@@ -85,7 +85,7 @@ const FilePage: React.FC = () => {
     } else {
       // 处理原始文件的选择
       setOriginalSelectedFiles(prev => {
-        const newSelection = prev.includes(id) 
+        const newSelection = prev.includes(id)
           ? prev.filter(fileId => fileId !== id)
           : [...prev, id];
         console.log(`原始文件选择更新: `, newSelection); // 添加调试输出
@@ -94,12 +94,14 @@ const FilePage: React.FC = () => {
     }
   };
 
+  // 注意：此函数已不再使用，但保留以备将来可能需要
   // 处理单个文件但不显示通知
+  /*
   const processFileWithoutNotification = async (fileId: string): Promise<void> => {
     try {
       // 更新文件状态为处理中
       updateFile(fileId, { status: 'uploading' });
-      
+
       // 调用processFile并传入false表示不显示通知
       return await processFile(fileId, false);
     } catch (error) {
@@ -107,12 +109,13 @@ const FilePage: React.FC = () => {
       throw error;
     }
   };
+  */
 
   // 处理完成后点击"完成"按钮的回调
   const handleProcessingComplete = () => {
     // 关闭模态框
     setShowProcessingModal(false);
-    
+
     // 显示处理结果通知，简化内容
     const { success, failed } = processingStatus;
     if (failed > 0) {
@@ -130,10 +133,10 @@ const FilePage: React.FC = () => {
     }
 
     // 确保选择了要处理的文件
-    const filesToProcess = originalSelectedFiles.filter(fileId => 
+    const filesToProcess = originalSelectedFiles.filter(fileId =>
       files.some(file => file.id === fileId)
     );
-    
+
     if (filesToProcess.length === 0) {
       notify.error('请选择文件');
       return;
@@ -150,7 +153,7 @@ const FilePage: React.FC = () => {
       // 获取当前选中的智能体
       const { agents, setCurrentAgent } = useAgentStore.getState();
       const selectedAgent = agents.find(a => a.id === selectedAgentId);
-      
+
       if (selectedAgent) {
         // 将AgentListItem转换为ExtendedAgentConfig
         const agentConfig: ExtendedAgentConfig = {
@@ -169,14 +172,14 @@ const FilePage: React.FC = () => {
           },
           isActive: true
         };
-        
+
         setCurrentAgent(agentConfig as AgentConfig);
       } else {
         notify.error('无法获取智能体信息');
         return;
       }
     }
-    
+
     // 初始化处理状态
     setProcessingStatus({
       total: filesToProcess.length,
@@ -185,14 +188,14 @@ const FilePage: React.FC = () => {
       failed: 0,
       completed: false
     });
-    
+
     // 显示处理进度模态框
     setShowProcessingModal(true);
 
     try {
       // 获取FileStore中的相关函数
       const fileStore = useFileStore.getState();
-      
+
       // 创建处理任务监听器
       const createWatcher = (fileId: string) => {
         return new Promise<ProcessingTaskResult>((resolve) => {
@@ -200,10 +203,10 @@ const FilePage: React.FC = () => {
           const watchFileStatus = setInterval(() => {
             const currentFiles = useFileStore.getState().files;
             const currentFile = currentFiles.find(f => f.id === fileId);
-            
+
             if (currentFile && (currentFile.status === 'completed' || currentFile.status === 'failed')) {
               clearInterval(watchFileStatus);
-              
+
               if (currentFile.status === 'completed') {
                 // 更新处理状态
                 setProcessingStatus(prev => ({
@@ -211,11 +214,11 @@ const FilePage: React.FC = () => {
                   processed: prev.processed + 1,
                   success: prev.success + 1
                 }));
-                
-                resolve({ 
-                  success: true, 
-                  fileId, 
-                  fileName: currentFile.name 
+
+                resolve({
+                  success: true,
+                  fileId,
+                  fileName: currentFile.name
                 });
               } else {
                 // 更新处理状态
@@ -224,10 +227,10 @@ const FilePage: React.FC = () => {
                   processed: prev.processed + 1,
                   failed: prev.failed + 1
                 }));
-                
-                resolve({ 
-                  success: false, 
-                  fileId, 
+
+                resolve({
+                  success: false,
+                  fileId,
                   fileName: currentFile.name,
                   error: currentFile.error || '处理失败'
                 });
@@ -236,23 +239,23 @@ const FilePage: React.FC = () => {
           }, 300);
         });
       };
-      
+
       // 为每个文件创建观察者
       const watchers = filesToProcess.map(fileId => createWatcher(fileId));
-      
+
       // 开始处理所有文件
       // 首先添加第一批文件到处理队列（最大并行数量）
       const { maxConcurrentProcessing } = fileStore;
       const firstBatch = filesToProcess.slice(0, maxConcurrentProcessing);
       const remainingFiles = filesToProcess.slice(maxConcurrentProcessing);
-      
+
       // 处理第一批文件
       for (const fileId of firstBatch) {
         fileStore.processFile(fileId, false).catch(error => {
           console.error(`启动文件处理失败: ${fileId}`, error);
         });
       }
-      
+
       // 将剩余文件添加到处理队列
       if (remainingFiles.length > 0) {
         // 将每个文件的状态标记为待处理
@@ -261,29 +264,29 @@ const FilePage: React.FC = () => {
             status: 'pending',
             error: '等待处理...'
           });
-          
+
           // 将文件添加到处理队列
           fileStore.processQueue.pendingFiles.push(fileId);
         }
-        
+
         // 设置队列为处理中状态
         fileStore.processQueue.isProcessing = true;
-        
+
         // 主动触发队列检查，确保队列被正确处理
         setTimeout(() => {
           fileStore.checkAndFillQueue();
         }, 100);
       }
-      
+
       // 等待所有文件处理完成
       await Promise.all(watchers);
-      
+
       // 设置处理完成状态
       setProcessingStatus(prev => ({
         ...prev,
         completed: true
       }));
-      
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '处理失败';
       // 关闭模态框并显示错误提示
@@ -296,7 +299,7 @@ const FilePage: React.FC = () => {
   const handleClearFiles = (isProcessed: boolean) => {
     // 获取当前状态的所有文件
     const { files, updateFile, clearFiles } = useFileStore.getState();
-    
+
     if (isProcessed) {
       // 如果是处理后文件列表，只清除处理结果，不删除文件
       files.forEach(file => {
@@ -309,13 +312,13 @@ const FilePage: React.FC = () => {
           });
         }
       });
-      
+
       notify.success('已清空');
     } else {
       // 清除所有文件，使用clearFiles函数，会在其中显示提示
       clearFiles();
     }
-    
+
     // 清空选择
     setOriginalSelectedFiles([]);
     setProcessedSelectedFiles([]);
@@ -325,44 +328,44 @@ const FilePage: React.FC = () => {
   const handleDownloadFiles = (fileIds: string[]) => {
     // 获取当前状态的所有文件
     const { files } = useFileStore.getState();
-    
+
     // 筛选出要下载的文件
-    const filesToDownload = files.filter(file => 
+    const filesToDownload = files.filter(file =>
       fileIds.includes(file.id) && file.content !== undefined && file.content !== null
     );
-    
+
     // 如果只有一个文件，直接下载
     if (filesToDownload.length === 1) {
       const file = filesToDownload[0];
       // 创建Blob对象
       const blob = new Blob([file.content || ''], { type: 'text/plain' });
-      
+
       // 设置下载文件名，添加processed后缀
       const fileNameParts = file.name.split('.');
       const extension = fileNameParts.pop() || '';
       const baseName = fileNameParts.join('.');
       const fileName = `${baseName}_processed.${extension}`;
-      
+
       // 下载文件
       saveAs(blob, fileName);
-      
+
       notify.success(`已下载文件: ${fileName}`);
-    } 
+    }
     // 如果有多个文件，创建ZIP压缩包
     else if (filesToDownload.length > 1) {
       const zip = new JSZip();
-      
+
       // 添加文件到压缩包
       filesToDownload.forEach(file => {
         const fileNameParts = file.name.split('.');
         const extension = fileNameParts.pop() || '';
         const baseName = fileNameParts.join('.');
         const fileName = `${baseName}_processed.${extension}`;
-        
+
         // 将文件内容添加到压缩包
         zip.file(fileName, file.content || '');
       });
-      
+
       // 生成压缩包并下载
       zip.generateAsync({ type: 'blob' })
         .then(content => {
@@ -370,10 +373,10 @@ const FilePage: React.FC = () => {
           const date = new Date();
           const dateStr = `${date.getFullYear()}${(date.getMonth()+1).toString().padStart(2, '0')}${date.getDate().toString().padStart(2, '0')}`;
           const timeStr = `${date.getHours().toString().padStart(2, '0')}${date.getMinutes().toString().padStart(2, '0')}`;
-          
+
           // 保存压缩包
           saveAs(content, `处理后文件_${dateStr}_${timeStr}.zip`);
-          
+
           notify.success(`已下载${filesToDownload.length}个文件的压缩包`);
         })
         .catch(error => {
@@ -402,7 +405,7 @@ const FilePage: React.FC = () => {
       // 获取当前选中的智能体
       const { agents, setCurrentAgent } = useAgentStore.getState();
       const selectedAgent = agents.find(a => a.id === selectedAgentId);
-      
+
       if (selectedAgent) {
         // 将AgentListItem转换为ExtendedAgentConfig
         const agentConfig: ExtendedAgentConfig = {
@@ -421,7 +424,7 @@ const FilePage: React.FC = () => {
           },
           isActive: true
         };
-        
+
         setCurrentAgent(agentConfig as AgentConfig);
       } else {
         notify.error('无法获取智能体信息');
@@ -441,7 +444,7 @@ const FilePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 处理进度模态框 */}
-      <ProcessingModal 
+      <ProcessingModal
         isOpen={showProcessingModal}
         processingStatus={processingStatus}
         agentName={currentAgent?.name || '智能体'}
@@ -465,7 +468,7 @@ const FilePage: React.FC = () => {
           </div>
 
           {/* 智能体选择面板 */}
-          <AgentPanel 
+          <AgentPanel
               onAgentSelected={() => {
                 // 智能体选择后无需额外操作
               }}
@@ -494,4 +497,4 @@ const FilePage: React.FC = () => {
   );
 };
 
-export default FilePage; 
+export default FilePage;

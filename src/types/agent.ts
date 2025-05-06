@@ -8,6 +8,7 @@ export const agentBaseSchema = z.object({
   description: z.string().max(200, '描述不能超过200个字符').optional(),
   createdAt: z.date().optional(),
   updatedAt: z.date().optional(),
+  model: z.string().default('gpt-3.5-turbo').optional(), // 添加模型字段
 });
 
 // 智能体处理规则的验证模式
@@ -39,4 +40,4 @@ export enum AgentStatus {
 export interface AgentListItem extends AgentBase {
   status: AgentStatus;
   lastUsed?: Date;
-} 
+}

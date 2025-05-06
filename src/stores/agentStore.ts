@@ -29,7 +29,7 @@ const loadFromStorage = () => {
     const storedData = localStorage.getItem('agent-store');
     if (storedData) {
       const { state } = JSON.parse(storedData);
-      
+
       // 转换日期字符串为Date对象
       const agents = state.agents || [];
       agents.forEach((agent: any) => {
@@ -37,7 +37,7 @@ const loadFromStorage = () => {
         if (agent.updatedAt) agent.updatedAt = new Date(agent.updatedAt);
         if (agent.lastUsed) agent.lastUsed = new Date(agent.lastUsed);
       });
-      
+
       // 无论如何都不加载currentAgent
       return {
         agents,
@@ -75,11 +75,11 @@ export const useAgentStore = create<AgentStore>()(
           set({ isLoading: true, error: null });
           try {
             const { agents, selectedAgentId } = loadFromStorage();
-            set({ 
-              agents, 
+            set({
+              agents,
               selectedAgentId,
               currentAgent: null, // 明确设置为null，而不是从localStorage加载
-              isLoading: false 
+              isLoading: false
             });
           } catch (error) {
             set({ error: (error as Error).message, isLoading: false });
@@ -88,7 +88,7 @@ export const useAgentStore = create<AgentStore>()(
         },
 
         setAgents: (agents) => set({ agents }),
-        
+
         addAgent: (agent) => {
           try {
             // 数据验证
@@ -103,7 +103,7 @@ export const useAgentStore = create<AgentStore>()(
 
             // 处理扩展的智能体配置，确保保留model字段
             const extendedAgent = agent as ExtendedAgentConfig;
-            
+
             // 生成唯一ID
             const newAgent: ExtendedAgentListItem = {
               ...agent,
@@ -154,40 +154,67 @@ export const useAgentStore = create<AgentStore>()(
 
               // 更新智能体
               const updatedAgents = [...state.agents];
-              updatedAgents[index] = {
+              const updatedAgent = {
                 ...updatedAgents[index],
                 ...agent,
-                // 保留model字段
-                model: extendedAgent.model !== undefined 
-                  ? extendedAgent.model 
-                  : (updatedAgents[index] as ExtendedAgentListItem).model,
-                // 保存规则信息
-                rules: extendedAgent.rules !== undefined
-                  ? extendedAgent.rules
-                  : (updatedAgents[index] as ExtendedAgentListItem).rules,
-                // 保存启用状态
-                isActive: extendedAgent.isActive !== undefined
-                  ? extendedAgent.isActive
-                  : (updatedAgents[index] as ExtendedAgentListItem).isActive,
                 updatedAt: new Date(),
               };
+
+              // 保留扩展字段
+              const extendedUpdatedAgent = updatedAgent as ExtendedAgentListItem;
+              const extendedOriginalAgent = updatedAgents[index] as ExtendedAgentListItem;
+
+              // 保留model字段
+              if (extendedAgent.model !== undefined) {
+                extendedUpdatedAgent.model = extendedAgent.model;
+              } else if (extendedOriginalAgent.model !== undefined) {
+                extendedUpdatedAgent.model = extendedOriginalAgent.model;
+              }
+
+              // 保存规则信息
+              if (extendedAgent.rules !== undefined) {
+                extendedUpdatedAgent.rules = extendedAgent.rules;
+              } else if (extendedOriginalAgent.rules !== undefined) {
+                extendedUpdatedAgent.rules = extendedOriginalAgent.rules;
+              }
+
+              // 保存启用状态
+              if (extendedAgent.isActive !== undefined) {
+                extendedUpdatedAgent.isActive = extendedAgent.isActive;
+              } else if (extendedOriginalAgent.isActive !== undefined) {
+                extendedUpdatedAgent.isActive = extendedOriginalAgent.isActive;
+              }
+
+              updatedAgents[index] = extendedUpdatedAgent;
 
               // 如果更新的是当前编辑的智能体，同步更新
               let updatedCurrentAgent = state.currentAgent;
               if (state.currentAgent && state.currentAgent.id === id) {
-                updatedCurrentAgent = {
+                const baseUpdatedAgent = {
                   ...state.currentAgent,
                   ...agent,
-                  // 保留model字段
-                  model: extendedAgent.model !== undefined 
-                    ? extendedAgent.model 
-                    : (state.currentAgent as ExtendedAgentConfig).model,
-                  // 保存规则信息
-                  rules: extendedAgent.rules !== undefined
-                    ? extendedAgent.rules
-                    : (state.currentAgent as ExtendedAgentConfig).rules,
                   updatedAt: new Date(),
                 };
+
+                // 保留扩展字段
+                const extendedCurrentAgent = state.currentAgent as ExtendedAgentConfig;
+                const extendedUpdatedCurrentAgent = baseUpdatedAgent as ExtendedAgentConfig;
+
+                // 保留model字段
+                if (extendedAgent.model !== undefined) {
+                  extendedUpdatedCurrentAgent.model = extendedAgent.model;
+                } else if (extendedCurrentAgent.model !== undefined) {
+                  extendedUpdatedCurrentAgent.model = extendedCurrentAgent.model;
+                }
+
+                // 保存规则信息
+                if (extendedAgent.rules !== undefined) {
+                  extendedUpdatedCurrentAgent.rules = extendedAgent.rules;
+                } else if (extendedCurrentAgent.rules !== undefined) {
+                  extendedUpdatedCurrentAgent.rules = extendedCurrentAgent.rules;
+                }
+
+                updatedCurrentAgent = extendedUpdatedCurrentAgent;
               }
 
               return {
@@ -216,7 +243,7 @@ export const useAgentStore = create<AgentStore>()(
                   error: null,
                 };
               }
-              
+
               return {
                 agents: state.agents.filter((agent) => agent.id !== id),
                 error: null,
@@ -230,7 +257,7 @@ export const useAgentStore = create<AgentStore>()(
         },
 
         setCurrentAgent: (agent) => {
-          set({ 
+          set({
             currentAgent: agent,
             selectedAgentId: agent?.id || null
           });
@@ -243,7 +270,7 @@ export const useAgentStore = create<AgentStore>()(
     },
     {
       name: 'agent-store',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         agents: state.agents,
         selectedAgentId: state.selectedAgentId,
         // 不持久化currentAgent状态，避免页面重新加载时自动打开编辑模态框
@@ -251,4 +278,4 @@ export const useAgentStore = create<AgentStore>()(
       }),
     }
   )
-); 
+);

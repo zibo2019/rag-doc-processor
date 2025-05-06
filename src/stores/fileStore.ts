@@ -37,15 +37,15 @@ interface FileStore {
   initializeProcessingQueue: () => void;
 }
 
-// 默认验证配置
-const DEFAULT_VALIDATION_CONFIG: FileValidationConfig = {
-  maxFileSize: 200 * 1024,        // 200KB
-  allowedTypes: [],               // 不限制文件类型
-  maxConcurrentUploads: 10,       // 增加最大并发数到10
-  autoSplitFiles: true,           // 默认启用自动分割
-  splitOverlapPercent: 8,         // 8%的重叠
-  maxChunkSize: 2000              // 分块大小为2000个token（约8000字符）
-};
+// 默认验证配置（注意：此常量已不再使用，配置直接在初始状态中定义）
+// const DEFAULT_VALIDATION_CONFIG: FileValidationConfig = {
+//   maxFileSize: 200 * 1024,        // 200KB
+//   allowedTypes: [],               // 不限制文件类型
+//   maxConcurrentUploads: 10,       // 增加最大并发数到10
+//   autoSplitFiles: true,           // 默认启用自动分割
+//   splitOverlapPercent: 8,         // 8%的重叠
+//   maxChunkSize: 2000              // 分块大小为2000个token（约8000字符）
+// };
 
 export const useFileStore = create<FileStore>((set, get) => ({
   // 初始状态
@@ -107,15 +107,15 @@ export const useFileStore = create<FileStore>((set, get) => ({
   // 检查并填充处理队列
   checkAndFillQueue: () => {
     const { processQueue, currentProcessingCount, maxConcurrentProcessing } = get();
-    
+
     // 如果有待处理的任务并且处理槽位有空闲，则立即启动处理
     if (processQueue.pendingFiles.length > 0 && currentProcessingCount < maxConcurrentProcessing) {
       // 计算可以填充的任务数量
       const availableSlots = maxConcurrentProcessing - currentProcessingCount;
       const tasksToProcess = Math.min(availableSlots, processQueue.pendingFiles.length);
-      
+
       console.log(`检测到空闲处理槽位: ${availableSlots}, 启动${tasksToProcess}个任务`);
-      
+
       // 立即启动处理下一个任务
       get().processNextInQueue();
     }
@@ -124,12 +124,12 @@ export const useFileStore = create<FileStore>((set, get) => ({
   // 处理队列中的下一个文件
   processNextInQueue: async () => {
     const { processQueue, maxConcurrentProcessing, currentProcessingCount } = get();
-    
+
     // 检查是否有待处理的文件，并且没有超过最大并发数
     if (processQueue.pendingFiles.length > 0 && currentProcessingCount < maxConcurrentProcessing) {
       // 获取队列中的下一个文件
       const nextFileId = processQueue.pendingFiles[0];
-      
+
       // 从队列中移除该文件
       set((state) => ({
         processQueue: {
@@ -137,14 +137,14 @@ export const useFileStore = create<FileStore>((set, get) => ({
           pendingFiles: state.processQueue.pendingFiles.slice(1)
         }
       }));
-      
+
       // 处理该文件（不显示通知）
       try {
         await get().processFile(nextFileId, false);
       } catch (error) {
         console.error(`处理队列中的文件 ${nextFileId} 失败:`, error);
       }
-      
+
       // 继续检查是否可以处理更多文件
       // 注意：这里不再递归调用，而是在完成处理后再检查队列状态
       setTimeout(() => {
@@ -163,22 +163,22 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
   // 处理文件
   processFile: async (id, showNotification = true) => {
-    const { files, updateFile, maxConcurrentProcessing, processQueue } = get();
+    const { files, updateFile, maxConcurrentProcessing } = get();
     const fileInfo = files.find((f) => f.id === id);
-    
+
     if (!fileInfo) {
       if (showNotification) notify.error('文件不存在');
       return;
     }
-    
+
     // 获取当前选中的智能体
     const { currentAgent } = useAgentStore.getState();
-    
+
     if (!currentAgent) {
       if (showNotification) notify.error('请先选择智能体');
       return;
     }
-    
+
     // 检查API是否已配置
     if (!checkAPIConfigured()) {
       if (showNotification) notify.error('请配置API密钥');
@@ -188,7 +188,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       });
       return;
     }
-    
+
     // 检查是否超过最大并发数
     if (get().currentProcessingCount >= maxConcurrentProcessing) {
       // 更新文件状态为等待中
@@ -218,7 +218,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
 
     try {
       // 更新状态为处理中
-      updateFile(id, { 
+      updateFile(id, {
         status: 'uploading',
         error: undefined // 清除之前的错误信息
       });
@@ -238,10 +238,10 @@ export const useFileStore = create<FileStore>((set, get) => ({
         updateFile(id, { rawContent: fileContent });
         fileInfo.rawContent = fileContent;
       }
-      
+
       // 使用OpenAI API处理文件内容
       const processedContent = await processFileWithOpenAI(fileInfo, currentAgent);
-      
+
       // 更新文件内容和状态
       updateFile(id, {
         content: processedContent,
@@ -270,7 +270,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
       set((state) => ({
         currentProcessingCount: state.currentProcessingCount - 1
       }));
-      
+
       // 立即检查是否有等待中的文件需要处理
       setTimeout(() => {
         get().checkAndFillQueue();
@@ -290,7 +290,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           pendingFiles: state.processQueue.pendingFiles.filter(fileId => fileId !== id)
         }
       }));
-      
+
       updateFile(id, {
         status: 'failed',
         error: '已取消'
@@ -309,7 +309,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
   // 初始化处理队列
   initializeProcessingQueue: () => {
     const { processQueue, files } = get();
-    
+
     // 重置处理中的文件状态
     files.forEach(file => {
       if (file.status === 'uploading') {
@@ -318,7 +318,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
           status: 'pending',
           error: '处理被中断，等待重新处理...'
         });
-        
+
         // 添加到处理队列
         if (!processQueue.pendingFiles.includes(file.id)) {
           set((state) => ({
@@ -330,7 +330,7 @@ export const useFileStore = create<FileStore>((set, get) => ({
         }
       }
     });
-    
+
     // 如果队列中有待处理的文件，设置队列为处理中状态
     if (processQueue.pendingFiles.length > 0) {
       set((state) => ({
@@ -339,11 +339,11 @@ export const useFileStore = create<FileStore>((set, get) => ({
           isProcessing: true
         }
       }));
-      
+
       // 检查并填充处理队列
       setTimeout(() => {
         get().checkAndFillQueue();
       }, 200);
     }
   }
-})); 
+}));

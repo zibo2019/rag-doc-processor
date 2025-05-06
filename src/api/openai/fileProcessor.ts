@@ -12,37 +12,37 @@ import { checkAPIConfigured } from './client';
  */
 async function withRetry<T>(fn: () => Promise<T>, maxRetries: number = 3, delay: number = 1000): Promise<T> {
   let lastError: any;
-  
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (error: any) {
       lastError = error;
-      
+
       // 检查是否是可以重试的错误
-      const isRateLimitError = error.message?.includes('rate limit') || 
+      const isRateLimitError = error.message?.includes('rate limit') ||
                                error.message?.includes('429') ||
                                error.message?.includes('too many requests');
-      
-      const isServerError = error.message?.includes('500') || 
+
+      const isServerError = error.message?.includes('500') ||
                             error.message?.includes('502') ||
                             error.message?.includes('503') ||
                             error.message?.includes('504');
-      
+
       // 如果不是可重试的错误或者已经到达最大重试次数，则抛出
       if ((!isRateLimitError && !isServerError) || attempt === maxRetries) {
         throw error;
       }
-      
+
       // 计算退避时间（指数退避）
       const backoffDelay = delay * Math.pow(2, attempt);
       console.log(`API请求失败(${error.message})，${attempt + 1}/${maxRetries}次重试，等待${backoffDelay}ms...`);
-      
+
       // 等待一段时间后重试
       await new Promise(resolve => setTimeout(resolve, backoffDelay));
     }
   }
-  
+
   // 如果所有重试都失败了，抛出最后一个错误
   throw lastError;
 }
@@ -65,7 +65,7 @@ export const processFileWithOpenAI = async (
   try {
     // 创建OpenAI客户端
     const openai = createOpenAIClient();
-    
+
     // 获取文件原始内容
     const content = fileInfo.rawContent;
     if (!content) {
@@ -75,11 +75,11 @@ export const processFileWithOpenAI = async (
     // 构建完整的提示词
     const messages = [
       {
-        role: 'system',
+        role: 'system' as const,
         content: agent.prompt
       },
       {
-        role: 'user',
+        role: 'user' as const,
         content: `以下是需要处理的文档内容，请根据指示进行处理：\n\n${content}`
       }
     ];
@@ -96,7 +96,7 @@ export const processFileWithOpenAI = async (
 
     // 获取处理结果
     const processedContent = response.choices[0]?.message?.content;
-    
+
     if (!processedContent) {
       throw new Error('API返回的处理结果为空');
     }
@@ -108,4 +108,4 @@ export const processFileWithOpenAI = async (
     }
     throw new Error('处理文件时发生未知错误');
   }
-}; 
+};

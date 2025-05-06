@@ -1,19 +1,16 @@
 import React, { useState } from 'react';
-import { FileInfo as BaseFileInfo } from '../../types/file';
+import { FileInfo } from '../../types/file';
 import clsx from 'clsx';
 import { FilePreview } from './FilePreview';
-
-// 扩展基础的 FileInfo 类型，重写 status 字段
-interface FileInfo extends Omit<BaseFileInfo, 'status'> {
-  status: 'pending' | 'completed';
-}
 
 interface FileListProps {
   originalFiles: FileInfo[];  // 原始文件列表
   processedFiles: FileInfo[]; // 处理后的文件列表
   onRemove: (id: string) => void;
+  onCancel?: (id: string) => void; // 取消处理的回调
+  onRetry?: (id: string) => Promise<void>; // 重试处理的回调
   originalSelectedFiles: string[]; // 存储原始文件选择状态
-  processedSelectedFiles: string[]; // 存储处理后文件选择状态 
+  processedSelectedFiles: string[]; // 存储处理后文件选择状态
   onSelectFile?: (id: string, isProcessed: boolean) => void; // 标识选择的是哪类文件
   onProcessFiles?: () => void; // 处理选中文件的回调
   onDownloadFiles?: (ids: string[]) => void; // 下载选中文件的回调
@@ -40,6 +37,16 @@ const getStatusStyle = (status: FileInfo['status']) => {
   switch (status) {
     case 'completed':
       return 'bg-green-100 text-green-800';
+    case 'failed':
+      return 'bg-red-100 text-red-800';
+    case 'uploading':
+      return 'bg-blue-100 text-blue-800';
+    case 'valid':
+      return 'bg-blue-100 text-blue-800';
+    case 'invalid':
+      return 'bg-red-100 text-red-800';
+    case 'validating':
+      return 'bg-yellow-100 text-yellow-800';
     case 'pending':
     default:
       return 'bg-gray-100 text-gray-800';
@@ -50,25 +57,30 @@ const getStatusStyle = (status: FileInfo['status']) => {
  * 获取状态文本
  */
 const getStatusText = (status: FileInfo['status']): string => {
-  const statusMap: Record<FileInfo['status'], string> = {
+  const statusMap: Record<string, string> = {
     pending: '待处理',
-    completed: '已完成'
+    completed: '已完成',
+    failed: '失败',
+    uploading: '处理中',
+    valid: '有效',
+    invalid: '无效',
+    validating: '验证中'
   };
-  return statusMap[status];
+  return statusMap[status] || '未知';
 };
 
 /**
  * 文件列表项组件
  */
-const FileListItem = ({ 
-  file, 
-  onRemove, 
-  onPreview, 
-  isSelected, 
-  onSelect, 
-  isProcessedView, 
-  onProcessSingle, 
-  onDownloadSingle 
+const FileListItem = ({
+  file,
+  onRemove,
+  onPreview,
+  isSelected,
+  onSelect,
+  isProcessedView,
+  onProcessSingle,
+  onDownloadSingle
 }: {
   file: FileInfo;
   onRemove: (id: string) => void;
@@ -92,19 +104,19 @@ const FileListItem = ({
     // 否则使用文件本身的大小（作为后备选项）
     return file.size;
   }, [file, isProcessedView]);
-  
+
   // 计算文件大小变化百分比
   const sizeDifference = React.useMemo(() => {
     // 只在处理后视图且有原始内容和处理后内容时计算
     if (isProcessedView && file.content && file.rawContent) {
       const originalSize = new Blob([file.rawContent]).size;
       const processedSize = new Blob([file.content]).size;
-      
+
       if (originalSize === 0) return null;
-      
+
       const diff = processedSize - originalSize;
       const percentChange = (diff / originalSize) * 100;
-      
+
       return {
         diff,
         percentChange: Math.round(percentChange * 100) / 100, // 保留两位小数
@@ -162,7 +174,7 @@ const FileListItem = ({
             <span className="text-gray-500">{formatFileSize(fileSize)}</span>
             {isProcessedView && sizeDifference && (
               <span className={clsx(
-                'inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full', 
+                'inline-flex items-center px-1.5 py-0.5 text-xs font-medium rounded-full',
                 sizeDifference.isReduction ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
               )}>
                 {sizeDifference.isReduction ? '↓' : '↑'} {Math.abs(sizeDifference.percentChange)}%
@@ -207,7 +219,7 @@ const FileListItem = ({
             处理
           </button>
         )}
-        
+
         {/* 处理后文件的下载按钮 */}
         {isProcessedView && onDownloadSingle && (
           <button
@@ -220,7 +232,7 @@ const FileListItem = ({
             下载
           </button>
         )}
-        
+
         {/* 删除按钮 */}
         <button
           onClick={() => onRemove(file.id)}
@@ -239,14 +251,14 @@ const FileListItem = ({
 /**
  * 功能按钮组组件
  */
-const ActionButtons = ({ 
-  type, 
-  fileCount, 
-  selectedCount, 
-  onSelectAll, 
-  onProcessFiles, 
-  onDownloadFiles, 
-  onClearFiles 
+const ActionButtons = ({
+  type,
+  fileCount,
+  selectedCount,
+  onSelectAll,
+  onProcessFiles,
+  onDownloadFiles,
+  onClearFiles
 }: {
   type: 'original' | 'processed';
   fileCount: number;
@@ -267,15 +279,15 @@ const ActionButtons = ({
       </svg>
       {selectedCount === fileCount && fileCount > 0 ? '取消全选' : '全选'}
     </button>
-    
+
     {/* 处理/下载按钮 */}
     {type === 'original' && onProcessFiles && (
       <button
         onClick={onProcessFiles}
         disabled={selectedCount === 0}
         className={`inline-flex items-center px-2.5 py-1.5 text-sm ${
-          selectedCount > 0 
-            ? 'text-blue-700 hover:text-blue-800' 
+          selectedCount > 0
+            ? 'text-blue-700 hover:text-blue-800'
             : 'text-blue-400 cursor-not-allowed'
         } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
       >
@@ -286,14 +298,14 @@ const ActionButtons = ({
         处理选中文件
       </button>
     )}
-    
+
     {type === 'processed' && onDownloadFiles && (
       <button
         onClick={onDownloadFiles}
         disabled={selectedCount === 0}
         className={`inline-flex items-center px-2.5 py-1.5 text-sm ${
-          selectedCount > 0 
-            ? 'text-green-700 hover:text-green-800' 
+          selectedCount > 0
+            ? 'text-green-700 hover:text-green-800'
             : 'text-green-400 cursor-not-allowed'
         } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500`}
       >
@@ -303,14 +315,14 @@ const ActionButtons = ({
         下载选中文件
       </button>
     )}
-    
+
     {/* 清空按钮 */}
     <button
       onClick={onClearFiles}
       disabled={fileCount === 0}
       className={`inline-flex items-center px-2.5 py-1.5 text-sm ${
-        fileCount > 0 
-          ? 'text-red-700 hover:text-red-800' 
+        fileCount > 0
+          ? 'text-red-700 hover:text-red-800'
           : 'text-red-400 cursor-not-allowed'
       } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500`}
     >
@@ -337,11 +349,11 @@ export const FileList: React.FC<FileListProps> = ({
 }) => {
   // 预览状态
   const [previewFile, setPreviewFile] = useState<FileInfo | null>(null);
-  
+
   // 添加类型保护，确保是数组
   const safeOriginalFiles = Array.isArray(originalFiles) ? originalFiles : [];
   const safeProcessedFiles = Array.isArray(processedFiles) ? processedFiles : [];
-  
+
   // 处理原始文件的选择
   const handleOriginalFileSelect = (id: string) => {
     if (onSelectFile) {
@@ -359,7 +371,7 @@ export const FileList: React.FC<FileListProps> = ({
   // 原始文件全选/取消全选
   const handleOriginalSelectAll = () => {
     const allSelected = safeOriginalFiles.every(file => originalSelectedFiles.includes(file.id));
-    
+
     if (allSelected) {
       // 取消全选 - 从选中列表中移除所有原始文件
       safeOriginalFiles.forEach(file => {
@@ -379,7 +391,7 @@ export const FileList: React.FC<FileListProps> = ({
   // 处理后文件全选/取消全选
   const handleProcessedSelectAll = () => {
     const allSelected = safeProcessedFiles.every(file => processedSelectedFiles.includes(file.id));
-    
+
     if (allSelected) {
       // 取消全选 - 从选中列表中移除所有处理后文件
       safeProcessedFiles.forEach(file => {
@@ -429,7 +441,7 @@ export const FileList: React.FC<FileListProps> = ({
               {safeOriginalFiles.length}个文件 / 已选{originalSelectedFiles.length}个
             </span>
           </div>
-          
+
           {/* 原始文件操作按钮 */}
           {safeOriginalFiles.length > 0 && (
             <ActionButtons
@@ -441,7 +453,7 @@ export const FileList: React.FC<FileListProps> = ({
               onClearFiles={() => onClearFiles && onClearFiles(false)}
             />
           )}
-          
+
           <div className="space-y-4">
             {safeOriginalFiles.length > 0 ? (
               safeOriginalFiles.map((file) => (
@@ -472,7 +484,7 @@ export const FileList: React.FC<FileListProps> = ({
               {safeProcessedFiles.length}个文件 / 已选{processedSelectedFiles.length}个
             </span>
           </div>
-          
+
           {/* 处理后文件操作按钮 */}
           {safeProcessedFiles.length > 0 && (
             <ActionButtons
@@ -484,7 +496,7 @@ export const FileList: React.FC<FileListProps> = ({
               onClearFiles={() => onClearFiles && onClearFiles(true)}
             />
           )}
-          
+
           <div className="space-y-4">
             {safeProcessedFiles.length > 0 ? (
               safeProcessedFiles.map((file) => (
@@ -518,4 +530,4 @@ export const FileList: React.FC<FileListProps> = ({
       )}
     </div>
   );
-}; 
+};

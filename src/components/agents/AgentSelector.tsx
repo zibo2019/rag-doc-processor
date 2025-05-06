@@ -67,7 +67,7 @@ export const AgentSelector: React.FC<AgentSelectorProps> = ({
                   ? 'ring-2 ring-blue-500 shadow-md'
                   : 'hover:ring-1 hover:ring-blue-400 shadow-sm hover:shadow'}
               `}
-              onClick={() => onSelectAgent(agent.id)}
+              onClick={() => onSelectAgent(agent.id || '')}
               role="button"
               tabIndex={0}
               aria-selected={isSelected}

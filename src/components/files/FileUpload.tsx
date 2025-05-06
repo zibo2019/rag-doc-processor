@@ -17,7 +17,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { validationConfig: storeConfig, updateValidationConfig } = useFileStore();
+  const { updateValidationConfig } = useFileStore();
 
   // 自动分割选项变化处理
   const handleAutoSplitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -33,7 +33,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       if (!files?.length) return;
 
       const fileArray = Array.from(files);
-      
+
       // 检查文件数量
       if (fileArray.length > 50) {
         showError('最多50个文件');
@@ -54,7 +54,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       const fileInfos = await Promise.all(fileInfoPromises);
       const processedFiles: FileInfo[] = [];
-      
+
       // 处理每个文件（可能需要分割）
       for (const fileInfo of fileInfos) {
         const validation = validateFile(
@@ -77,7 +77,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         if (validationConfig.autoSplitFiles && fileInfo.rawContent) {
           try {
             const splitFiles = await splitFile(fileInfo, validationConfig);
-            
+
             if (splitFiles.length > 1) {
               // 添加分割后的文件
               processedFiles.push(...splitFiles);
@@ -95,7 +95,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
           // 不需要分割
           processedFiles.push(fileInfo);
         }
-        
+
         // 更新文件状态为有效
         onFileValidated(fileInfo.id, {
           ...fileInfo,
@@ -105,7 +105,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       // 添加所有文件
       onFilesSelected(processedFiles);
-      
+
       // 只在没有分割文件时显示添加成功提示
       const hasSplitFiles = processedFiles.some(file => file.isPartOfSplit);
       if (!hasSplitFiles) {
@@ -219,7 +219,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         })}>
           <span className="font-medium">点击上传</span> 或拖拽文件到此处
         </p>
-        
+
         <div className="flex flex-wrap justify-center gap-4">
           <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
             'bg-blue-100/80 text-blue-700': isDragging,
@@ -231,7 +231,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </svg>
             <span className="text-sm whitespace-nowrap">文件类型不限</span>
           </div>
-          
+
           <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
             'bg-blue-100/80 text-blue-700': isDragging,
             'bg-gray-100/80 text-gray-600 hover:bg-gray-200/80': !isDragging && !disabled,
@@ -242,7 +242,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </svg>
             <span className="text-sm whitespace-nowrap">最大 {validationConfig.maxFileSize / 1024}KB</span>
           </div>
-          
+
           <div className={clsx('flex items-center space-x-2 px-3 py-1.5 rounded-full transition-colors duration-200', {
             'bg-blue-100/80 text-blue-700': isDragging,
             'bg-gray-100/80 text-gray-600 hover:bg-gray-200/80': !isDragging && !disabled,
@@ -275,18 +275,18 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             重叠率：{validationConfig.splitOverlapPercent || 20}%
           </span>
         </div>
-        
+
         <div className="flex items-center text-sm text-gray-600">
           <svg className="w-4 h-4 mr-1.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
           <span>
-            分块大小：{validationConfig.maxChunkSize ? 
-              `约${validationConfig.maxChunkSize}个token（约${validationConfig.maxChunkSize * 4}字符）` : 
+            分块大小：{validationConfig.maxChunkSize ?
+              `约${validationConfig.maxChunkSize}个token（约${validationConfig.maxChunkSize * 4}字符）` :
               '约2000个token'}
           </span>
         </div>
       </div>
     </div>
   );
-}; 
+};
